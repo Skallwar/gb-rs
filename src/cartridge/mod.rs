@@ -4,11 +4,11 @@ use std::path;
 mod mbc0;
 
 pub trait Cartridge {
-    fn read_rom(self, addr: u16) -> u8;
-    fn read_ram(self, addr: u16) -> u8;
+    fn read_rom(&self, addr: u16) -> u8;
+    fn read_ram(&self, addr: u16) -> u8;
 
-    fn write_rom(self, addr: u16, data: u8);
-    fn write_ram(self, addr: u16, data: u8);
+    fn write_rom(&mut self, addr: u16, data: u8);
+    fn write_ram(&self, addr: u16, data: u8);
 }
 
 pub fn new(path: &path::Path) -> Box<Cartridge> {

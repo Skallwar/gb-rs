@@ -4,6 +4,7 @@ use crate::mmu::Mmu;
 
 pub struct Cpu {
     regs: Registers,
+    cycles: u8,
 
     mmu: Mmu,
 }
@@ -26,8 +27,23 @@ impl Cpu {
     pub fn new(path: &path::Path) -> Self {
         Cpu {
             regs: Registers::new(),
+            cycles: 0,
 
             mmu: Mmu::new(path),
+        }
+    }
+
+    pub fn run(&mut self) {
+        loop {
+            if self.cycles != 0 {
+                self.cycles -= 1;
+            }
+
+            let instr = self.mmu.read(self.regs.PC());
+            println!("Addr: 0x{:X}\t Op: 0x{:X}", self.regs.PC(), instr);
+
+            self.regs.inc_PC();
+
         }
     }
 }
@@ -49,118 +65,118 @@ impl Registers {
         }
     }
 
-    fn A(self) -> u8 {
+    fn A(&self) -> u8 {
         self.A
     }
 
-    fn B(self) -> u8 {
+    fn B(&self) -> u8 {
         self.B
     }
 
-    fn C(self) -> u8 {
+    fn C(&self) -> u8 {
         self.C
     }
 
-    fn D(self) -> u8 {
+    fn D(&self) -> u8 {
         self.D
     }
 
-    fn E(self) -> u8 {
+    fn E(&self) -> u8 {
         self.E
     }
 
-    fn H(self) -> u8 {
+    fn H(&self) -> u8 {
         self.H
     }
 
-    fn L(self) -> u8 {
+    fn L(&self) -> u8 {
         self.L
     }
 
-    fn F(self) -> u8 {
+    fn F(&self) -> u8 {
         self.F
     }
 
-    fn AF(self) -> u16 {
+    fn AF(&self) -> u16 {
         (self.A as u16) << 8
     }
 
-    fn BC(self) -> u16 {
+    fn BC(&self) -> u16 {
         (self.B as u16) << 8 + self.C
     }
 
-    fn DE(self) -> u16 {
+    fn DE(&self) -> u16 {
         (self.D as u16) << 8 + self.E
     }
 
-    fn HL(self) -> u16 {
+    fn HL(&self) -> u16 {
         (self.H as u16) << 8 + self.L
     }
 
-    fn SP(self) -> u16 {
+    fn SP(&self) -> u16 {
         self.SP
     }
 
-    fn PC(self) -> u16 {
+    fn PC(&self) -> u16 {
         self.PC
     }
 
-    fn set_A(mut self, data: u8) {
+    fn set_A(&mut self, data: u8) {
         self.A = data;
     }
 
-    fn set_B(mut self, data: u8) {
+    fn set_B(&mut self, data: u8) {
         self.B = data;
     }
 
-    fn set_C(mut self, data: u8) {
+    fn set_C(&mut self, data: u8) {
         self.C = data;
     }
 
-    fn set_D(mut self, data: u8) {
+    fn set_D(&mut self, data: u8) {
         self.D = data;
     }
 
-    fn set_E(mut self, data: u8) {
+    fn set_E(&mut self, data: u8) {
         self.E = data;
     }
 
-    fn set_H(mut self, data: u8) {
+    fn set_H(&mut self, data: u8) {
         self.H = data;
     }
 
-    fn set_L(mut self, data: u8) {
+    fn set_L(&mut self, data: u8) {
         self.L = data;
     }
 
-    fn set_AF(mut self, data: u16) {
+    fn set_AF(&mut self, data: u16) {
         self.A = (data >> 8) as u8;
     }
 
-    fn set_BC(mut self, data: u16) {
+    fn set_BC(&mut self, data: u16) {
         self.B = (data >> 8) as u8;
         self.C = (data & 0x00FF) as u8;
     }
 
-    fn set_DE(mut self, data: u16) {
+    fn set_DE(&mut self, data: u16) {
         self.D = (data >> 8) as u8;
         self.E = (data & 0x00FF) as u8;
     }
 
-    fn set_HL(mut self, data: u16) {
+    fn set_HL(&mut self, data: u16) {
         self.H = (data >> 8) as u8;
         self.L = (data & 0x00FF) as u8;
     }
 
-    fn set_SP(mut self, data: u16) {
+    fn set_SP(&mut self, data: u16) {
         self.SP = data;
     }
 
-    fn set_PC(mut self, data: u16) {
+    fn set_PC(&mut self, data: u16) {
         self.PC = data;
     }
 
-    fn flag_Z(self) -> bool {
+    fn flag_Z(&self) -> bool {
         if self.F & 0b10000000 != 0 {
             true
         } else {
@@ -168,7 +184,7 @@ impl Registers {
         }
     }
 
-    fn flag_N(self) -> bool {
+    fn flag_N(&self) -> bool {
         if self.F & 0b01000000 != 0 {
             true
         } else {
@@ -176,7 +192,7 @@ impl Registers {
         }
     }
 
-    fn flag_H(self) -> bool {
+    fn flag_H(&self) -> bool {
         if self.F & 0b00100000 != 0 {
             true
         } else {
@@ -184,11 +200,15 @@ impl Registers {
         }
     }
 
-    fn flag_C(self) -> bool {
+    fn flag_C(&self) -> bool {
         if self.F & 0b00010000 != 0 {
             true
         } else {
             false
         }
+    }
+
+    fn inc_PC(&mut self) {
+        self.set_PC(self.PC() + 1);
     }
 }

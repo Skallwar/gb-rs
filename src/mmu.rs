@@ -1,7 +1,7 @@
 use std::path;
 
-use crate::cartridge as cartridge;
-use crate::cartridge::Cartridge as Cartridge;
+use crate::cartridge;
+use crate::cartridge::Cartridge;
 
 pub struct Mmu {
     cartridge: Box<Cartridge>,
@@ -14,15 +14,16 @@ impl Mmu {
         }
     }
 
-    fn read(addr: u16) -> u8 {
+    pub fn read(&self, addr: u16) -> u8 {
         match addr {
-            _ => panic!("Read at {} not implemented", addr),
+            0x0000...0x3FFF => self.cartridge.read_rom(addr),
+            _ => panic!("Read at 0x{:X} not implemented", addr),
         }
     }
 
-    fn write(addr: u16) -> u8 {
+    pub fn write(&self, addr: u16) -> u8 {
         match addr {
-            _ => panic!("Read at {} not implemented", addr),
+            _ => panic!("Write at 0x{:X} not implemented", addr),
         }
     }
 }

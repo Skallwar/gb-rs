@@ -18,5 +18,6 @@ fn main() {
         panic!("Path does not exist or is not a file !");
     }
 
-    let cpu = Cpu::new(path);
+    let mut cpu = Cpu::new(path);
+    cpu.run();
 }
