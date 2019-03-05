@@ -40,11 +40,34 @@ impl Cpu {
             }
 
             let instr = self.mmu.read(self.regs.PC());
-            println!("Addr: 0x{:X}\t Op: 0x{:X}", self.regs.PC(), instr);
+            self.exec_instr(instr);
 
             self.regs.inc_PC();
 
         }
+    }
+
+    fn exec_instr(&self, instr: u8) {
+        match instr {
+            0x00 => {
+                println!("Addr: 0x{:04X}\t Op: {}(0x{:04X})", self.regs.PC(), "NOP", instr);
+            }
+            _ => self.panic_dump(instr),
+        }
+    }
+
+    fn panic_dump(&self, instr: u8) {
+        println!();
+        println!("Addr: 0x{:04X}\t Opcode 0x{:04X} not implemented", self.regs.PC(), instr);
+        println!("Register dump:");
+        println!("-AF: 0x{:04X}", self.regs.AF());
+        println!("-BC: 0x{:04X}", self.regs.BC());
+        println!("-DE: 0x{:04X}", self.regs.DE());
+        println!("-HL: 0x{:04X}", self.regs.HL());
+        println!("-SP: 0x{:04X}", self.regs.SP());
+        println!("-PC: 0x{:04X}", self.regs.PC());
+        println!();
+        panic!();
     }
 }
 
@@ -64,7 +87,7 @@ impl Registers {
             PC: 0x0100,
         }
     }
-
+    //Getters
     fn A(&self) -> u8 {
         self.A
     }
@@ -98,19 +121,20 @@ impl Registers {
     }
 
     fn AF(&self) -> u16 {
+        //AF returns only A
         (self.A as u16) << 8
     }
 
     fn BC(&self) -> u16 {
-        (self.B as u16) << 8 + self.C
+        ((self.B as u16) << 8) + self.C as u16
     }
 
     fn DE(&self) -> u16 {
-        (self.D as u16) << 8 + self.E
+        ((self.D as u16) << 8) + self.E as u16
     }
 
     fn HL(&self) -> u16 {
-        (self.H as u16) << 8 + self.L
+        ((self.H as u16) << 8) + self.L as u16
     }
 
     fn SP(&self) -> u16 {
@@ -121,6 +145,7 @@ impl Registers {
         self.PC
     }
 
+    //Setters
     fn set_A(&mut self, data: u8) {
         self.A = data;
     }
@@ -150,6 +175,7 @@ impl Registers {
     }
 
     fn set_AF(&mut self, data: u16) {
+        //AF contains only A
         self.A = (data >> 8) as u8;
     }
 
