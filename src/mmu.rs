@@ -1,6 +1,7 @@
 use std::path;
 
-use cartridge::Cartridge;
+use crate::cartridge as cartridge;
+use crate::cartridge::Cartridge as Cartridge;
 
 pub struct Mmu {
     cartridge: Box<Cartridge>,

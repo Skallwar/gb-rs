@@ -1,4 +1,4 @@
-use crate::mmu::cartridge::Cartridge;
+use crate::cartridge::Cartridge;
 
 pub struct Mbc0 {
     rom: Vec<u8>,
@@ -6,8 +6,7 @@ pub struct Mbc0 {
 
 impl Mbc0 {
     pub fn new(data: Vec<u8>) -> Self {
-        let rom = Rom { rom: data };
-        Mbc0 { rom: rom }
+        Mbc0 { rom: data }
     }
 }
 
@@ -16,7 +15,7 @@ impl Cartridge for Mbc0 {
         self.rom[addr as usize]
     }
 
-    fn read_ram(self, addr: u16) -> u8 {
+    fn read_ram(self, _addr: u16) -> u8 {
         panic!("No RAM on MBC0 cartridge !");
     }
 
@@ -24,7 +23,7 @@ impl Cartridge for Mbc0 {
         self.rom[addr as usize] = data;
     }
 
-    fn write_ram(self, addr: u16) -> u8 {
+    fn write_ram(self, _addr: u16, _data: u8) {
         panic!("No RAM on MBC0 cartridge !");
     }
 }

@@ -1,7 +1,11 @@
 use std::path;
 
+use crate::mmu::Mmu;
+
 pub struct Cpu {
     regs: Registers,
+
+    mmu: Mmu,
 }
 
 #[allow(non_snake_case)]
@@ -19,9 +23,11 @@ struct Registers {
 }
 
 impl Cpu {
-    pub fn new() -> Self {
+    pub fn new(path: &path::Path) -> Self {
         Cpu {
-            regs: Register::new();
+            regs: Registers::new(),
+
+            mmu: Mmu::new(path),
         }
     }
 }
@@ -30,16 +36,16 @@ impl Cpu {
 impl Registers {
     fn new() -> Self {
         Registers {
-            A: 0,
-            B: 0,
-            C: 0,
-            D: 0,
-            E: 0,
-            H: 0,
-            L: 0,
-            F: 0,
-            SP: 0,
-            PC: 0,
+            A: 0x01,
+            B: 0x00,
+            C: 0x13,
+            D: 0x00,
+            E: 0xD8,
+            H: 0x01,
+            L: 0x4D,
+            F: 0xB0,
+            SP: 0xFFFE,
+            PC: 0x0100,
         }
     }
 

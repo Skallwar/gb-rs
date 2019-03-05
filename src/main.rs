@@ -1,7 +1,11 @@
-mod cartridge;
-
 use std::env;
 use std::path;
+
+mod cartridge;
+mod cpu;
+mod mmu;
+
+use cpu::Cpu;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -9,5 +13,10 @@ fn main() {
         println!("No file specified");
     }
 
-    let rom = cartridge::new(path::Path::new(&args[1]));
+    let path = path::Path::new(&args[1]);
+    if !path.is_file() {
+        panic!("Path does not exist or is not a file !");
+    }
+
+    let cpu = Cpu::new(path);
 }
