@@ -10,7 +10,7 @@ pub struct Cpu {
 }
 
 #[allow(non_snake_case)]
-struct Registers {
+pub struct Registers {
     A: u8,
     B: u8,
     C: u8,
@@ -39,35 +39,90 @@ impl Cpu {
                 self.cycles -= 1;
             }
 
-            let instr = self.mmu.read(self.regs.PC());
-            self.exec_instr(instr);
-
+            let instr = self.mmu.read(self.regs.PC);
             self.regs.inc_PC();
-
+            self.cycles = self.exec_instr(instr);
         }
     }
 
-    fn exec_instr(&self, instr: u8) {
+    fn exec_instr(&mut self, instr: u8) -> u8 {
+        let addr = self.regs.PC - 1;
         match instr {
             0x00 => {
-                println!("Addr: 0x{:04X}\t Op: {}(0x{:04X})", self.regs.PC(), "NOP", instr);
+                println!(
+                    "Addr:0x{:04X}\tOp:0x{:X}\tTime:{}\t{}",
+                    addr, instr, 4, "JMP"
+                );
+                4
             }
-            _ => self.panic_dump(instr),
+
+            0xAF => {
+                self.xor(self.regs.A);
+
+                println!(
+                    "Addr:0x{:04X}\tOp:0x{:X}\tTime:{}\t{} {}",
+                    addr, instr, 4, "XOR", "A"
+                );
+                4
+            }
+
+            0xC3 => {
+                self.regs.PC = self.get_imu16();
+                println!(
+                    "Addr:{:04X}\tOp:{}\tTime:{}\t{} 0x{:04X}",
+                    addr, instr, 16, "JMP", self.regs.PC
+                );
+
+                16
+            }
+
+            _ => {
+                self.panic_dump(instr);
+
+                0
+            }
         }
+    }
+
+    fn get_imu8(&mut self) -> u8 {
+        let val: u8 = self.mmu.read(self.regs.PC);
+        self.regs.inc_PC();
+        val
+    }
+
+    fn get_imu16(&mut self) -> u16 {
+        let mut val: u16 = self.get_imu8() as u16;
+        val |= (self.mmu.read(self.regs.PC) as u16) << 8;
+        val
     }
 
     fn panic_dump(&self, instr: u8) {
         println!();
-        println!("Addr: 0x{:04X}\t Opcode 0x{:04X} not implemented", self.regs.PC(), instr);
+        println!(
+            "Addr: 0x{:04X}\t Opcode 0x{:X} not implemented",
+            self.regs.PC - 1,
+            instr
+        );
         println!("Register dump:");
         println!("-AF: 0x{:04X}", self.regs.AF());
         println!("-BC: 0x{:04X}", self.regs.BC());
         println!("-DE: 0x{:04X}", self.regs.DE());
         println!("-HL: 0x{:04X}", self.regs.HL());
-        println!("-SP: 0x{:04X}", self.regs.SP());
-        println!("-PC: 0x{:04X}", self.regs.PC());
+        println!("-SP: 0x{:04X}", self.regs.SP);
+        println!("-PC: 0x{:04X}", self.regs.PC);
         println!();
         panic!();
+    }
+}
+
+//ALU
+impl Cpu {
+    fn xor(&mut self, reg: u8) {
+        self.regs.A = reg ^ self.regs.A;
+
+        if self.regs.A == 0 {
+            self.regs.set_flag_Z(true);
+        }
     }
 }
 
@@ -87,39 +142,8 @@ impl Registers {
             PC: 0x0100,
         }
     }
+
     //Getters
-    fn A(&self) -> u8 {
-        self.A
-    }
-
-    fn B(&self) -> u8 {
-        self.B
-    }
-
-    fn C(&self) -> u8 {
-        self.C
-    }
-
-    fn D(&self) -> u8 {
-        self.D
-    }
-
-    fn E(&self) -> u8 {
-        self.E
-    }
-
-    fn H(&self) -> u8 {
-        self.H
-    }
-
-    fn L(&self) -> u8 {
-        self.L
-    }
-
-    fn F(&self) -> u8 {
-        self.F
-    }
-
     fn AF(&self) -> u16 {
         //AF returns only A
         (self.A as u16) << 8
@@ -137,43 +161,7 @@ impl Registers {
         ((self.H as u16) << 8) + self.L as u16
     }
 
-    fn SP(&self) -> u16 {
-        self.SP
-    }
-
-    fn PC(&self) -> u16 {
-        self.PC
-    }
-
     //Setters
-    fn set_A(&mut self, data: u8) {
-        self.A = data;
-    }
-
-    fn set_B(&mut self, data: u8) {
-        self.B = data;
-    }
-
-    fn set_C(&mut self, data: u8) {
-        self.C = data;
-    }
-
-    fn set_D(&mut self, data: u8) {
-        self.D = data;
-    }
-
-    fn set_E(&mut self, data: u8) {
-        self.E = data;
-    }
-
-    fn set_H(&mut self, data: u8) {
-        self.H = data;
-    }
-
-    fn set_L(&mut self, data: u8) {
-        self.L = data;
-    }
-
     fn set_AF(&mut self, data: u16) {
         //AF contains only A
         self.A = (data >> 8) as u8;
@@ -194,14 +182,7 @@ impl Registers {
         self.L = (data & 0x00FF) as u8;
     }
 
-    fn set_SP(&mut self, data: u16) {
-        self.SP = data;
-    }
-
-    fn set_PC(&mut self, data: u16) {
-        self.PC = data;
-    }
-
+    //Flags
     fn flag_Z(&self) -> bool {
         if self.F & 0b10000000 != 0 {
             true
@@ -234,7 +215,38 @@ impl Registers {
         }
     }
 
+    fn set_flag_Z(&mut self, val: bool) {
+        if val {
+            self.F |= 0b10000000;
+        } else {
+            self.F &= 0b01111111;
+        }
+    }
+
+    fn set_flag_N(&mut self, val: bool) {
+        if val {
+            self.F |= 0b01000000;
+        } else {
+            self.F &= 0b10111111;
+        }
+    }
+
+    fn set_flag_H(&mut self, val: bool) {
+        if val {
+            self.F |= 0b00100000;
+        } else {
+            self.F &= 0b11011111;
+        }
+    }
+
+    fn set_flag_C(&mut self, val: bool) {
+        if val {
+            self.F |= 0b00010000;
+        } else {
+            self.F &= 0b11101111;
+        }
+    }
     fn inc_PC(&mut self) {
-        self.set_PC(self.PC() + 1);
+        self.PC += 1;
     }
 }
