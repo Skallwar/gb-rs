@@ -23,6 +23,13 @@ pub struct Registers {
     PC: u16,
 }
 
+enum FlagsMasks {
+    Z = 0b10000000,
+    N = 0b01000000,
+    H = 0b00100000,
+    C = 0b00010000,
+}
+
 impl Cpu {
     pub fn new(path: &path::Path) -> Self {
         Cpu {
@@ -48,14 +55,112 @@ impl Cpu {
     fn exec_instr(&mut self, instr: u8) -> u8 {
         let addr = self.regs.PC - 1;
         match instr {
+            //NOP
             0x00 => {
                 println!(
                     "Addr:0x{:04X}\tOp:0x{:X}\tTime:{}\t{}",
-                    addr, instr, 4, "JMP"
+                    addr, instr, 4, "NOP"
                 );
                 4
             }
 
+            //DEC B
+            0x05 => {
+                self.regs.B = self.dec_u8(self.regs.B);
+
+                println!(
+                    "Addr:0x{:04X}\tOp:0x{:X}\tTime:{}\t{} {}",
+                    addr, instr, 4, "DEC", "B"
+                );
+                4
+            }
+
+            //LD B u8
+            0x06 => {
+                let data = self.get_imu8();
+                self.regs.B = data;
+
+                println!(
+                    "Addr:0x{:04X}\tOp:0x{:X}\tTime:{}\t{} {} 0x{:X}",
+                    addr, instr, 8, "LD", "B,", data
+                );
+                8
+            }
+
+            //DEC D
+            0x0D => {
+                self.regs.C = self.dec_u8(self.regs.C);
+
+                println!(
+                    "Addr:0x{:04X}\tOp:0x{:X}\tTime:{}\t{} {}",
+                    addr, instr, 4, "DEC", "C"
+                );
+                4
+            }
+
+            //LD C u8
+            0x0E => {
+                let data = self.get_imu8();
+                self.regs.C = data;
+
+                println!(
+                    "Addr:0x{:04X}\tOp:0x{:X}\tTime:{}\t{} {} 0x{:X}",
+                    addr, instr, 8, "LD", "C,", data
+                );
+                8
+            }
+
+            //JR NZ
+            0x20 => {
+                let jmp_addr = self.get_imu8();
+                if !self.regs.flag_Z() {
+                    self.regs.PC = jmp_addr as u16;
+                }
+
+                println!(
+                    "Addr:0x{:04X}\tOp:0x{:X}\tTime:{}\t{} {} 0x{:04X}",
+                    addr, instr, 8, "JR", "NZ", jmp_addr
+                );
+                8
+            }
+
+            //LD HL u16
+            0x21 => {
+                let data = self.get_imu16();
+                self.regs.set_HL(data);
+
+                println!(
+                    "Addr:0x{:04X}\tOp:0x{:X}\tTime:{}\t{} {} 0x{:X}",
+                    addr, instr, 12, "LD", "HL,", data
+                );
+                12
+            }
+
+            //LDD HL u16
+            0x32 => {
+                let addr = self.regs.HL();
+                self.mmu.write(addr, self.regs.A);
+                self.regs.set_HL(addr - 1);
+
+                println!(
+                    "Addr:0x{:04X}\tOp:0x{:X}\tTime:{}\t{} {:04X}, {}",
+                    addr, instr, 8, "LDD", addr, "A"
+                );
+                8
+            }
+
+            //LD A imu8
+            0x3E => {
+                self.regs.A = self.get_imu8();
+
+                println!(
+                    "Addr:0x{:04X}\tOp:0x{:X}\tTime:{}\t{} {} 0x{:X}",
+                    addr, instr, 8, "LD", "HL,", self.regs.A
+                );
+                8
+            }
+
+            //XOR A
             0xAF => {
                 self.xor(self.regs.A);
 
@@ -66,14 +171,37 @@ impl Cpu {
                 4
             }
 
+            //JMP u16
             0xC3 => {
                 self.regs.PC = self.get_imu16();
+
                 println!(
-                    "Addr:{:04X}\tOp:{}\tTime:{}\t{} 0x{:04X}",
+                    "Addr:0x{:04X}\tOp:0x{:X}\tTime:{}\t{} 0x{:04X}",
                     addr, instr, 16, "JMP", self.regs.PC
                 );
-
                 16
+            }
+
+            //RST 0x18
+            0xDF => {
+                self.rst(0x18);
+
+                println!(
+                    "Addr:{:04X}\tOp:0x{:X}\tTime:{}\t{} 0x{:X}",
+                    addr, instr, 32, "RST", 0x18
+                );
+                32
+            }
+
+            //RST 0x36
+            0xFF => {
+                self.rst(0x36);
+
+                println!(
+                    "Addr:{:04X}\tOp:{}\tTime:{}\t{} 0x{:X}",
+                    addr, instr, 32, "RST", 0x36
+                );
+                32
             }
 
             _ => {
@@ -84,6 +212,13 @@ impl Cpu {
         }
     }
 
+    fn stack_push(&mut self, data: u16) {
+        self.mmu.write(self.regs.SP, (data >> 8) as u8);
+        self.regs.SP -= 1;
+        self.mmu.write(self.regs.SP, (data & 0x0F) as u8);
+        self.regs.SP -= 1;
+    }
+
     fn get_imu8(&mut self) -> u8 {
         let val: u8 = self.mmu.read(self.regs.PC);
         self.regs.inc_PC();
@@ -92,14 +227,14 @@ impl Cpu {
 
     fn get_imu16(&mut self) -> u16 {
         let mut val: u16 = self.get_imu8() as u16;
-        val |= (self.mmu.read(self.regs.PC) as u16) << 8;
+        val |= (self.get_imu8() as u16) << 8;
         val
     }
 
     fn panic_dump(&self, instr: u8) {
         println!();
         println!(
-            "Addr: 0x{:04X}\t Opcode 0x{:X} not implemented",
+            "Addr: 0x{:04X}\t Opcode 0x{:02X} not implemented",
             self.regs.PC - 1,
             instr
         );
@@ -123,6 +258,31 @@ impl Cpu {
         if self.regs.A == 0 {
             self.regs.set_flag_Z(true);
         }
+    }
+
+    fn dec_u8(&mut self, reg: u8) -> u8 {
+        let res = reg.overflowing_sub(1).0;
+
+        self.regs.set_flag_N(true);
+        if res == 0 {
+            self.regs.set_flag_Z(true);
+        }
+
+        if res & 0xF0 == 0 {
+            self.regs.set_flag_H(true);
+        } else {
+            self.regs.set_flag_H(false);
+        }
+
+        res
+    }
+}
+
+//JMP
+impl Cpu {
+    fn rst(&mut self, offset: u8) {
+        self.stack_push(self.regs.PC);
+        self.regs.PC = 0x0000 + offset as u16;
     }
 }
 
@@ -184,68 +344,53 @@ impl Registers {
 
     //Flags
     fn flag_Z(&self) -> bool {
-        if self.F & 0b10000000 != 0 {
-            true
-        } else {
-            false
-        }
+        self.F & (FlagsMasks::Z as u8) != 0
     }
 
     fn flag_N(&self) -> bool {
-        if self.F & 0b01000000 != 0 {
-            true
-        } else {
-            false
-        }
+        self.F & (FlagsMasks::N as u8) != 0
     }
 
     fn flag_H(&self) -> bool {
-        if self.F & 0b00100000 != 0 {
-            true
-        } else {
-            false
-        }
+        self.F & (FlagsMasks::H as u8) != 0
     }
 
     fn flag_C(&self) -> bool {
-        if self.F & 0b00010000 != 0 {
-            true
-        } else {
-            false
-        }
+        self.F & (FlagsMasks::C as u8) != 0
     }
 
     fn set_flag_Z(&mut self, val: bool) {
         if val {
-            self.F |= 0b10000000;
+            self.F |= FlagsMasks::Z as u8;
         } else {
-            self.F &= 0b01111111;
+            self.F &= !(FlagsMasks::Z as u8);
         }
     }
 
     fn set_flag_N(&mut self, val: bool) {
         if val {
-            self.F |= 0b01000000;
+            self.F |= FlagsMasks::N as u8;
         } else {
-            self.F &= 0b10111111;
+            self.F &= !(FlagsMasks::N as u8);
         }
     }
 
     fn set_flag_H(&mut self, val: bool) {
         if val {
-            self.F |= 0b00100000;
+            self.F |= FlagsMasks::H as u8;
         } else {
-            self.F &= 0b11011111;
+            self.F &= !(FlagsMasks::H as u8);
         }
     }
 
     fn set_flag_C(&mut self, val: bool) {
         if val {
-            self.F |= 0b00010000;
+            self.F |= FlagsMasks::C as u8;
         } else {
-            self.F &= 0b11101111;
+            self.F &= !(FlagsMasks::C as u8);
         }
     }
+
     fn inc_PC(&mut self) {
         self.PC += 1;
     }
