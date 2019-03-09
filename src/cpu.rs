@@ -127,6 +127,17 @@ impl Cpu {
                 12
             }
 
+            //LD SP u16
+            0x31 => {
+                self.regs.SP = self.get_imu16();
+
+                println!(
+                    "Addr:0x{:04X}\tOp:0x{:X}\tTime:{}\t{} {} 0x{:X}",
+                    addr, instr, 12, "LD", "SP,", self.regs.SP
+                );
+                12
+            }
+
             //LDD HL u16
             0x32 => {
                 let addr = self.regs.HL();
