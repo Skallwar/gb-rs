@@ -1,6 +1,7 @@
 use std::path;
 
 use crate::mmu::Mmu;
+use crate::regs::*;
 
 pub struct Cpu {
     regs: Registers,
@@ -12,29 +13,8 @@ pub struct Cpu {
     mmu: Mmu,
 }
 
-#[allow(non_snake_case)]
-pub struct Registers {
-    A: u8,
-    B: u8,
-    C: u8,
-    D: u8,
-    E: u8,
-    H: u8,
-    L: u8,
-    F: u8,
-    SP: u16,
-    PC: u16,
-}
-
 struct ModeChangeFlags {
     change_intrpt_mode_on_next_instr: bool,
-}
-
-enum FlagsMasks {
-    Z = 0b10000000,
-    N = 0b01000000,
-    H = 0b00100000,
-    C = 0b00010000,
 }
 
 impl Cpu {
@@ -124,7 +104,7 @@ impl Cpu {
             //JR NZ
             0x20 => {
                 let jmp_addr = self.get_imu8();
-                if !self.regs.flag_Z() {
+                if !self.regs.get_flag(FlagsMasks::Z) {
                     self.regs.PC = jmp_addr as u16;
                 }
 
@@ -283,22 +263,22 @@ impl Cpu {
         self.regs.A = reg ^ self.regs.A;
 
         if self.regs.A == 0 {
-            self.regs.set_flag_Z(true);
+            self.regs.set_flag(FlagsMasks::Z, true);
         }
     }
 
     fn dec_u8(&mut self, reg: u8) -> u8 {
         let res = reg.overflowing_sub(1).0;
 
-        self.regs.set_flag_N(true);
+        self.regs.set_flag(FlagsMasks::N, true);
         if res == 0 {
-            self.regs.set_flag_Z(true);
+            self.regs.set_flag(FlagsMasks::Z, true);
         }
 
         if res & 0xF0 == 0 {
-            self.regs.set_flag_H(true);
+            self.regs.set_flag(FlagsMasks::H, true);
         } else {
-            self.regs.set_flag_H(false);
+            self.regs.set_flag(FlagsMasks::H, false);
         }
 
         res
@@ -310,116 +290,6 @@ impl Cpu {
     fn rst(&mut self, offset: u8) {
         self.stack_push(self.regs.PC);
         self.regs.PC = 0x0000 + offset as u16;
-    }
-}
-
-#[allow(non_snake_case)]
-impl Registers {
-    fn new() -> Self {
-        Registers {
-            A: 0x01,
-            B: 0x00,
-            C: 0x13,
-            D: 0x00,
-            E: 0xD8,
-            H: 0x01,
-            L: 0x4D,
-            F: 0xB0,
-            SP: 0xFFFE,
-            PC: 0x0100,
-        }
-    }
-
-    //Getters
-    fn AF(&self) -> u16 {
-        //AF returns only A
-        (self.A as u16) << 8
-    }
-
-    fn BC(&self) -> u16 {
-        ((self.B as u16) << 8) + self.C as u16
-    }
-
-    fn DE(&self) -> u16 {
-        ((self.D as u16) << 8) + self.E as u16
-    }
-
-    fn HL(&self) -> u16 {
-        ((self.H as u16) << 8) + self.L as u16
-    }
-
-    //Setters
-    fn set_AF(&mut self, data: u16) {
-        //AF contains only A
-        self.A = (data >> 8) as u8;
-    }
-
-    fn set_BC(&mut self, data: u16) {
-        self.B = (data >> 8) as u8;
-        self.C = (data & 0x00FF) as u8;
-    }
-
-    fn set_DE(&mut self, data: u16) {
-        self.D = (data >> 8) as u8;
-        self.E = (data & 0x00FF) as u8;
-    }
-
-    fn set_HL(&mut self, data: u16) {
-        self.H = (data >> 8) as u8;
-        self.L = (data & 0x00FF) as u8;
-    }
-
-    //Flags
-    fn flag_Z(&self) -> bool {
-        self.F & (FlagsMasks::Z as u8) != 0
-    }
-
-    fn flag_N(&self) -> bool {
-        self.F & (FlagsMasks::N as u8) != 0
-    }
-
-    fn flag_H(&self) -> bool {
-        self.F & (FlagsMasks::H as u8) != 0
-    }
-
-    fn flag_C(&self) -> bool {
-        self.F & (FlagsMasks::C as u8) != 0
-    }
-
-    fn set_flag_Z(&mut self, val: bool) {
-        if val {
-            self.F |= FlagsMasks::Z as u8;
-        } else {
-            self.F &= !(FlagsMasks::Z as u8);
-        }
-    }
-
-    fn set_flag_N(&mut self, val: bool) {
-        if val {
-            self.F |= FlagsMasks::N as u8;
-        } else {
-            self.F &= !(FlagsMasks::N as u8);
-        }
-    }
-
-    fn set_flag_H(&mut self, val: bool) {
-        if val {
-            self.F |= FlagsMasks::H as u8;
-        } else {
-            self.F &= !(FlagsMasks::H as u8);
-        }
-    }
-
-    fn set_flag_C(&mut self, val: bool) {
-        if val {
-            self.F |= FlagsMasks::C as u8;
-        } else {
-            self.F &= !(FlagsMasks::C as u8);
-        }
-    }
-
-    fn inc_PC(&mut self) {
-        self.PC += 1;
     }
 }
 
