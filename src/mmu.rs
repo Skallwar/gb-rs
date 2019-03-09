@@ -12,6 +12,8 @@ pub struct Mmu {
     ram: Vec<u8>,
     ioports: Vec<u8>,
     hram: Vec<u8>,
+
+    is_dmg: bool,
 }
 
 impl Mmu {
@@ -44,31 +46,27 @@ impl Mmu {
                 0x20, 0xf5, 0x6, 0x19, 0x78, 0x86, 0x23, 0x5, 0x20, 0xfb, 0x86, 0x20, 0xfe, 0x3e,
                 0x1, 0xe0, 0x50,
             ],
+
+            is_dmg: true,
         }
     }
 
     pub fn read(&self, addr: u16) -> u8 {
         match addr {
-            0x0000...0x3FFF => {
-                if self.read(0xFF50) == 0 {
-                    self.dmg[addr as usize]
-                } else {
-                    self.cartridge.read_rom(addr)
-                }
-            }
+            //DMG
+            0x0000...0x00FF if self.is_dmg => self.dmg[addr as usize],
+            0x0000...0x3FFF => self.cartridge.read_rom(addr),
 
-            0xFF00...0xFF7E => self.ram[addr as usize - 0xFF00],
+            // 0xFF00...0xFF7E => self.ram[addr as usize - 0xFF00],
             _ => panic!("Read at 0x{:X} not implemented", addr),
         }
     }
 
     pub fn write(&mut self, addr: u16, data: u8) {
         match addr {
-            //RAM
             0xC000...0xDFFF => self.ram[addr as usize - 0xC000 - 1] = data,
             //VRAM
             0x8000...0x9FFF => self.ppu.write(addr - 0x8000 - 1, data),
-            //HRAM
             0xFF80...0xFFFE => self.hram[addr as usize - 0xFF80 - 1] = data,
 
             _ => panic!("Write at 0x{:X} not implemented", addr),
