@@ -4,6 +4,9 @@ use crate::mmu::Mmu;
 
 pub struct Cpu {
     regs: Registers,
+    mode_flags: ModeChangeFlags,
+
+    interrupts: bool,
     cycles: u8,
 
     mmu: Mmu,
@@ -23,6 +26,10 @@ pub struct Registers {
     PC: u16,
 }
 
+struct ModeChangeFlags {
+    change_intrpt_mode_on_next_instr: bool,
+}
+
 enum FlagsMasks {
     Z = 0b10000000,
     N = 0b01000000,
@@ -34,6 +41,9 @@ impl Cpu {
     pub fn new(path: &path::Path) -> Self {
         Cpu {
             regs: Registers::new(),
+            mode_flags: ModeChangeFlags::new(),
+
+            interrupts: true,
             cycles: 0,
 
             mmu: Mmu::new(path),
@@ -54,7 +64,8 @@ impl Cpu {
 
     fn exec_instr(&mut self, instr: u8) -> u8 {
         let addr = self.regs.PC - 1;
-        match instr {
+
+        let cycles = match instr {
             //NOP
             0x00 => {
                 println!(
@@ -155,7 +166,7 @@ impl Cpu {
 
                 println!(
                     "Addr:0x{:04X}\tOp:0x{:X}\tTime:{}\t{} {} 0x{:X}",
-                    addr, instr, 8, "LD", "HL,", self.regs.A
+                    addr, instr, 8, "LD", "A,", self.regs.A
                 );
                 8
             }
@@ -193,6 +204,14 @@ impl Cpu {
                 32
             }
 
+            //DI
+            0xF3 => {
+                //Mode flag set at end of func
+
+                println!("Addr:{:04X}\tOp:0x{:X}\tTime:{}\t{}", addr, instr, 4, "DI");
+                4
+            }
+
             //RST 0x36
             0xFF => {
                 self.rst(0x36);
@@ -209,7 +228,15 @@ impl Cpu {
 
                 0
             }
+        };
+
+        if instr == 0xF3 {
+            self.mode_flags.change_intrpt_mode_on_next_instr = true;
+        } else if self.mode_flags.change_intrpt_mode_on_next_instr {
+            self.interrupts = !self.interrupts;
         }
+
+        cycles
     }
 
     fn stack_push(&mut self, data: u16) {
@@ -393,5 +420,13 @@ impl Registers {
 
     fn inc_PC(&mut self) {
         self.PC += 1;
+    }
+}
+
+impl ModeChangeFlags {
+    fn new() -> Self {
+        ModeChangeFlags {
+            change_intrpt_mode_on_next_instr: false,
+        }
     }
 }
