@@ -4,6 +4,7 @@ use std::path;
 mod cartridge;
 mod cpu;
 mod mmu;
+mod ppu;
 mod regs;
 
 use cpu::Cpu;

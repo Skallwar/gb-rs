@@ -2,9 +2,11 @@ use std::path;
 
 use crate::cartridge;
 use crate::cartridge::Cartridge;
+use crate::ppu::Ppu;
 
 pub struct Mmu {
     cartridge: Box<Cartridge>,
+    ppu: Ppu,
 
     dmg: Vec<u8>,
     ram: Vec<u8>,
@@ -16,6 +18,7 @@ impl Mmu {
     pub fn new(path: &path::Path) -> Self {
         Mmu {
             cartridge: cartridge::new(path),
+            ppu: Ppu::new(),
 
             ram: vec![0; 0xDFFF - 0xC000],
             ioports: vec![0; 0xFF7E - 0xFF00],
@@ -63,6 +66,8 @@ impl Mmu {
         match addr {
             //RAM
             0xC000...0xDFFF => self.ram[addr as usize - 0xC000 - 1] = data,
+            //VRAM
+            0x8000...0x9FFF => self.ppu.write(addr - 0x8000 - 1, data),
             //HRAM
             0xFF80...0xFFFE => self.hram[addr as usize - 0xFF80 - 1] = data,
 
