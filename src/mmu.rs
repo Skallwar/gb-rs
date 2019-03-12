@@ -22,9 +22,9 @@ impl Mmu {
             cartridge: cartridge::new(path),
             ppu: Ppu::new(),
 
-            ram: vec![0; 0xDFFF - 0xC000],
-            ioports: vec![0; 0xFF7E - 0xFF00],
-            hram: vec![0; 0xFFFE - 0xFF80],
+            ram: vec![0; 0xDFFF - 0xC000 + 1],
+            ioports: vec![0; 0xFF7E - 0xFF00 + 1],
+            hram: vec![0; 0xFFFE - 0xFF80 + 1],
             dmg: vec![
                 0x31, 0xfe, 0xff, 0xaf, 0x21, 0xff, 0x9f, 0x32, 0xcb, 0x7c, 0x20, 0xfb, 0x21, 0x26,
                 0xff, 0xe, 0x11, 0x3e, 0x80, 0x32, 0xe2, 0xc, 0x3e, 0xf3, 0xe2, 0x32, 0x3e, 0x77,
@@ -53,9 +53,9 @@ impl Mmu {
 
     pub fn read(&self, addr: u16) -> u8 {
         match addr {
-            //DMG
-            0x0000...0x00FF if self.is_dmg => self.dmg[addr as usize],
+            0x0000...0x00FF if self.is_dmg => self.dmg[addr as usize], //DMG
             0x0000...0x3FFF => self.cartridge.read_rom(addr),
+            0xFF80...0xFFFE => self.hram[addr as usize - 0xFF80],
 
             // 0xFF00...0xFF7E => self.ram[addr as usize - 0xFF00],
             _ => panic!("Read at 0x{:X} not implemented", addr),
@@ -64,12 +64,25 @@ impl Mmu {
 
     pub fn write(&mut self, addr: u16, data: u8) {
         match addr {
-            0xC000...0xDFFF => self.ram[addr as usize - 0xC000 - 1] = data,
+            0xC000...0xDFFF => self.ram[addr as usize - 0xC000] = data,
             //VRAM
-            0x8000...0x9FFF => self.ppu.write(addr - 0x8000 - 1, data),
-            0xFF80...0xFFFE => self.hram[addr as usize - 0xFF80 - 1] = data,
+            0x8000...0x9FFF => self.ppu.write(addr - 0x8000, data),
+            0xFF00...0xFF7F => self.ioports[addr as usize - 0xFF00] = data,
+            0xFF80...0xFFFE => self.hram[addr as usize - 0xFF80] = data,
 
             _ => panic!("Write at 0x{:X} not implemented", addr),
         }
+    }
+
+    pub fn write_u16(&mut self, addr: u16, data: u16) {
+        self.write(addr, (data & 0x00FF) as u8);
+        self.write(addr + 1, (data >> 8) as u8);
+    }
+
+    pub fn read_u16(&self, addr: u16) -> u16 {
+        let mut word: u16 = self.read(addr) as u16;
+        word += (self.read(addr + 1) as u16) << 8;
+
+        word
     }
 }
