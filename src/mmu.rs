@@ -55,6 +55,7 @@ impl Mmu {
         match addr {
             0x0000...0x00FF if self.is_dmg => self.dmg[addr as usize], //DMG
             0x0000...0x3FFF => self.cartridge.read_rom(addr),
+            0xFF00...0xFF7F => self.ioports[addr as usize - 0xFF00],
             0xFF80...0xFFFE => self.hram[addr as usize - 0xFF80],
 
             // 0xFF00...0xFF7E => self.ram[addr as usize - 0xFF00],

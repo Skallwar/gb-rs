@@ -55,6 +55,17 @@ impl Cpu {
                 4
             }
 
+            //INC B
+            0x04 => {
+                self.regs.B = self.inc_u8(self.regs.B);
+
+                println!(
+                    "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {}",
+                    addr, instr, 4, "INC", "B"
+                );
+                4
+            }
+
             //DEC B
             0x05 => {
                 self.regs.B = self.dec_u8(self.regs.B);
@@ -112,6 +123,18 @@ impl Cpu {
                 8
             }
 
+            //LD A 0xFF00 + u8
+            0xF0 => {
+                let offset = self.get_imu8();
+                self.regs.A = self.mmu.read(0xFF00 + offset as u16);
+
+                println!(
+                    "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {} 0x{:X}",
+                    addr, instr, 12, "LDH", "A,", offset
+                );
+                12
+            }
+
             //LD DE imu16
             0x11 => {
                 let word = self.get_imu16();
@@ -147,6 +170,19 @@ impl Cpu {
                 4
             }
 
+            //JR
+            0x18 => {
+                let offset = self.get_imu8() as i8;
+                let jmp_addr = ((self.regs.PC as i32) + offset as i32) as u16;
+                self.regs.PC = jmp_addr;
+
+                println!(
+                    "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {} 0x{:04X}",
+                    addr, instr, 8, "JR", "NZ", jmp_addr
+                );
+                8
+            }
+
             //LD A DE
             0x1A => {
                 self.regs.A = self.mmu.read(self.regs.DE());
@@ -154,6 +190,18 @@ impl Cpu {
                 println!(
                     "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {} {}",
                     addr, instr, 8, "LD", "A,", "DE"
+                );
+                8
+            }
+
+            //LD E u8
+            0x1E => {
+                let data = self.get_imu8();
+                self.regs.E = data;
+
+                println!(
+                    "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {} 0x{:X}",
+                    addr, instr, 8, "LD", "E,", data
                 );
                 8
             }
@@ -210,6 +258,33 @@ impl Cpu {
                 8
             }
 
+            //JR Z, u16
+            0x28 => {
+                let offset = self.get_imu8() as i8;
+                let jmp_addr = ((self.regs.PC as i32) + offset as i32) as u16;
+
+                if self.regs.get_flag(FlagsMasks::Z) {
+                    self.regs.PC = jmp_addr;
+                }
+
+                println!(
+                    "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {} 0x{:X}",
+                    addr, instr, 8, "JR", "Z", offset
+                );
+                8
+            }
+
+            //LD L imu8
+            0x2E => {
+                self.regs.L = self.get_imu8();
+
+                println!(
+                    "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {} 0x{:X}",
+                    addr, instr, 8, "LD", "L,", self.regs.L
+                );
+                8
+            }
+
             //LD SP u16
             0x31 => {
                 self.regs.SP = self.get_imu16();
@@ -234,6 +309,17 @@ impl Cpu {
                 8
             }
 
+            //DEC A
+            0x3D => {
+                self.regs.A = self.dec_u8(self.regs.A);
+
+                println!(
+                    "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {}",
+                    addr, instr, 4, "DEC", "A"
+                );
+                4
+            }
+
             //LD A imu8
             0x3E => {
                 self.regs.A = self.get_imu8();
@@ -252,6 +338,28 @@ impl Cpu {
                 println!(
                     "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {} {}",
                     addr, instr, 4, "LD", "C,", "A"
+                );
+                4
+            }
+
+            //LD D A
+            0x57 => {
+                self.regs.D = self.regs.A;
+
+                println!(
+                    "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {} {}",
+                    addr, instr, 4, "LD", "D,", "A"
+                );
+                4
+            }
+
+            //LD H A
+            0x67 => {
+                self.regs.H = self.regs.A;
+
+                println!(
+                    "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {} {}",
+                    addr, instr, 4, "LD", "H,", "A"
                 );
                 4
             }
@@ -300,6 +408,7 @@ impl Cpu {
                 );
                 12
             }
+
             //JMP u16
             0xC3 => {
                 self.regs.PC = self.get_imu16();
