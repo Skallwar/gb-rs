@@ -5,7 +5,7 @@ pub struct Ppu {
 impl Ppu {
     pub fn new() -> Self {
         Ppu {
-            vram: vec![0; 0x9FFF - 0x8000],
+            vram: vec![0; 0x9FFF - 0x8000 + 1],
         }
     }
 
