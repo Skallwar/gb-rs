@@ -1,13 +1,15 @@
 pub struct Ppu {
     vram: Vec<u8>,
-    // LCDC_Constrol: u8,
+
+    pub LCDC_Control: u8,
     // LCDC_Status: u8,
-    // SCY: u8,
+    pub SCY: u8,
     // SCX: u8,
-    // LY: u8,
+    pub LY: u8,
     // LYC: u8,
     // WY: u8,
     // WX: u8,
+    pub BG_ColorPalette: u8,
 }
 
 enum Colors {
@@ -19,6 +21,12 @@ impl Ppu {
     pub fn new() -> Self {
         Ppu {
             vram: vec![0; 0x9FFF - 0x8000 + 1],
+
+            LCDC_Control: 0,
+            SCY: 0,
+            LY: 0,
+
+            BG_ColorPalette: 0,
         }
     }
 

@@ -55,8 +55,7 @@ impl Mmu {
         match addr {
             0x0000...0x00FF if self.dmg_on => self.dmg[addr as usize], //DMG
             0x0000...0x3FFF => self.cartridge.read_rom(addr),
-            0xFF40 => panic!("Read in LCDC not implemented"),
-            0xFF00...0xFF7F => self.ioports[addr as usize - 0xFF00],
+            0xFF00...0xFF7F => self.ioports_read(addr),
             0xFF80...0xFFFE => self.hram[addr as usize - 0xFF80],
 
             // 0xFF00...0xFF7E => self.ram[addr as usize - 0xFF00],
@@ -69,8 +68,7 @@ impl Mmu {
             0xC000...0xDFFF => self.ram[addr as usize - 0xC000] = data,
             //VRAM
             0x8000...0x9FFF => self.ppu.write(addr - 0x8000, data),
-            0xFF40 => panic!("Write in LCDC not implemented"),
-            0xFF00...0xFF7F => self.ioports[addr as usize - 0xFF00] = data,
+            0xFF00...0xFF7F => self.ioports_write(addr, data),
             0xFF80...0xFFFE => self.hram[addr as usize - 0xFF80] = data,
 
             _ => panic!("Write at 0x{:X} not implemented", addr),
@@ -91,12 +89,18 @@ impl Mmu {
 
     fn ioports_read(&self, addr: u16) -> u8 {
         match addr {
+            0xFF44 => self.ppu.LY,
             _ => panic!("Read at 0x{:X} in I/O ports not implemented", addr),
         }
     }
 
-    fn ioports_write(&self, addr: u16, data: u8) {
+    fn ioports_write(&mut self, addr: u16, data: u8) {
         match addr {
+            0xFF26 | 0xFF11 | 0xFF12 | 0xFF24 | 0xFF25 => {} //TODO implement sound
+            //PPU / LCD
+            0xFF40 => self.ppu.LCDC_Control = data,
+            0xFF42 => self.ppu.SCY = data,
+            0xFF47 => self.ppu.BG_ColorPalette = data,
             _ => panic!("Write at 0x{:X} in I/O ports not implemented", addr),
         }
     }
