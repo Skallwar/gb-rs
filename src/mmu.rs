@@ -6,14 +6,14 @@ use crate::ppu::Ppu;
 
 pub struct Mmu {
     cartridge: Box<Cartridge>,
-    ppu: Ppu,
+    pub ppu: Ppu,
 
     dmg: Vec<u8>,
     ram: Vec<u8>,
     ioports: Vec<u8>,
     hram: Vec<u8>,
 
-    is_dmg: bool,
+    dmg_on: bool,
 }
 
 impl Mmu {
@@ -47,14 +47,15 @@ impl Mmu {
                 0x1, 0xe0, 0x50,
             ],
 
-            is_dmg: true,
+            dmg_on: true,
         }
     }
 
     pub fn read(&self, addr: u16) -> u8 {
         match addr {
-            0x0000...0x00FF if self.is_dmg => self.dmg[addr as usize], //DMG
+            0x0000...0x00FF if self.dmg_on => self.dmg[addr as usize], //DMG
             0x0000...0x3FFF => self.cartridge.read_rom(addr),
+            0xFF40 => panic!("Read in LCDC not implemented"),
             0xFF00...0xFF7F => self.ioports[addr as usize - 0xFF00],
             0xFF80...0xFFFE => self.hram[addr as usize - 0xFF80],
 
@@ -68,6 +69,7 @@ impl Mmu {
             0xC000...0xDFFF => self.ram[addr as usize - 0xC000] = data,
             //VRAM
             0x8000...0x9FFF => self.ppu.write(addr - 0x8000, data),
+            0xFF40 => panic!("Write in LCDC not implemented"),
             0xFF00...0xFF7F => self.ioports[addr as usize - 0xFF00] = data,
             0xFF80...0xFFFE => self.hram[addr as usize - 0xFF80] = data,
 
@@ -85,5 +87,17 @@ impl Mmu {
         word += (self.read(addr + 1) as u16) << 8;
 
         word
+    }
+
+    fn ioports_read(&self, addr: u16) -> u8 {
+        match addr {
+            _ => panic!("Read at 0x{:X} in I/O ports not implemented", addr),
+        }
+    }
+
+    fn ioports_write(&self, addr: u16, data: u8) {
+        match addr {
+            _ => panic!("Write at 0x{:X} in I/O ports not implemented", addr),
+        }
     }
 }

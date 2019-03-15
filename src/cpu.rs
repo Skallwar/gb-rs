@@ -36,6 +36,11 @@ impl Cpu {
                 self.cycles -= 1;
             }
 
+            //Test read tile
+            if self.regs.PC == 0x5B {
+                self.mmu.ppu.tile_print(0x19);
+            }
+
             let instr = self.mmu.read(self.regs.PC);
             self.regs.inc_PC();
             self.cycles = self.exec_instr(instr);
@@ -625,39 +630,41 @@ impl Cpu {
     }
 
     fn dec_u8(&mut self, reg: u8) -> u8 {
-        let res = reg.overflowing_sub(1).0;
+        let res = reg.overflowing_sub(1);
 
         self.regs.set_flag(FlagsMasks::N, true);
-        if res == 0 {
+        if res.0 == 0 {
             self.regs.set_flag(FlagsMasks::Z, true);
         } else {
             self.regs.set_flag(FlagsMasks::Z, false);
         }
 
-        if res & 0xF0 == 0 {
-            self.regs.set_flag(FlagsMasks::H, true);
-        } else {
+        if res.0 & 0b11110000 == 0 {
             self.regs.set_flag(FlagsMasks::H, false);
+        } else {
+            self.regs.set_flag(FlagsMasks::H, true);
         }
 
-        res
+        res.0
     }
 
     fn inc_u8(&mut self, reg: u8) -> u8 {
-        let res = reg.overflowing_add(1).0;
+        let res = reg.overflowing_add(1);
 
         self.regs.set_flag(FlagsMasks::N, false);
-        if res == 0 {
+        if res.0 == 0 {
             self.regs.set_flag(FlagsMasks::Z, true);
+        } else {
+            self.regs.set_flag(FlagsMasks::Z, false);
         }
 
-        if res & 0xF8 == 0 {
+        if res.0 & 0b11111000 == 0 {
             self.regs.set_flag(FlagsMasks::H, true);
         } else {
             self.regs.set_flag(FlagsMasks::H, false);
         }
 
-        res
+        res.0
     }
 
     fn bit(&mut self, regs: u8, nb_bit: u8) {
@@ -675,18 +682,19 @@ impl Cpu {
 
     //TODO fix rotation, not shift
     fn rl(&mut self, reg: u8) -> u8 {
-        self.regs.set_flag(FlagsMasks::C, reg & 0b10000000 > 0);
         self.regs.set_flag(FlagsMasks::N, false);
         self.regs.set_flag(FlagsMasks::H, false);
 
-        let reg = reg << 1;
-        if reg != 0 {
+        let res = (reg << 1) + self.regs.get_flag(FlagsMasks::C) as u8;
+        self.regs.set_flag(FlagsMasks::C, (reg & 0b10000000) > 0);
+
+        if res != 0 {
             self.regs.set_flag(FlagsMasks::Z, false);
         } else {
             self.regs.set_flag(FlagsMasks::Z, true);
         }
 
-        reg
+        res
     }
 
     fn sub(&mut self, num1: u8, num2: u8) -> u8 {
@@ -728,13 +736,24 @@ impl Cpu {
 
     fn call(&mut self) {
         let addr = self.get_imu16();
-        self.stack_push_u16(self.regs.PC + 2);
+        self.stack_push_u16(self.regs.PC);
         self.regs.PC = addr;
     }
 }
 
 //Debug
 impl Cpu {
+    fn dump(&self) {
+        println!("Register dump:");
+        println!("-AF: 0x{:04X}", self.regs.AF());
+        println!("-BC: 0x{:04X}", self.regs.BC());
+        println!("-DE: 0x{:04X}", self.regs.DE());
+        println!("-HL: 0x{:04X}", self.regs.HL());
+        println!("-SP: 0x{:04X}", self.regs.SP);
+        println!("-PC: 0x{:04X}", self.regs.PC);
+        println!();
+    }
+
     fn panic_dump(&self, instr: u8, prefix: bool) {
         println!();
         if prefix {
@@ -750,14 +769,8 @@ impl Cpu {
                 instr
             );
         }
-        println!("Register dump:");
-        println!("-AF: 0x{:04X}", self.regs.AF());
-        println!("-BC: 0x{:04X}", self.regs.BC());
-        println!("-DE: 0x{:04X}", self.regs.DE());
-        println!("-HL: 0x{:04X}", self.regs.HL());
-        println!("-SP: 0x{:04X}", self.regs.SP);
-        println!("-PC: 0x{:04X}", self.regs.PC);
-        println!();
+
+        self.dump();
         panic!();
     }
 }

@@ -23,15 +23,15 @@ pub enum FlagsMasks {
 impl Registers {
     pub fn new() -> Self {
         Registers {
-            A: 0x01,
+            A: 0x00,
             B: 0x00,
-            C: 0x13,
+            C: 0x00,
             D: 0x00,
-            E: 0xD8,
-            H: 0x01,
-            L: 0x4D,
-            F: 0xB0,
-            SP: 0xFFFE,
+            E: 0x00,
+            H: 0x00,
+            L: 0x00,
+            F: 0x00,
+            SP: 0x0000,
             PC: 0x0000,
         }
     }
@@ -39,7 +39,7 @@ impl Registers {
     //Getters
     pub fn AF(&self) -> u16 {
         //AF returns only A
-        (self.A as u16) << 8
+        ((self.A as u16) << 8) + self.F as u16
     }
 
     pub fn BC(&self) -> u16 {
