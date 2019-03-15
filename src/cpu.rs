@@ -36,11 +36,6 @@ impl Cpu {
                 self.cycles -= 1;
             }
 
-            //Test read tile
-            if self.regs.PC == 0x5B {
-                self.mmu.ppu.tile_print(0x19);
-            }
-
             let instr = self.mmu.read(self.regs.PC);
             self.regs.inc_PC();
             self.cycles = self.exec_instr(instr);
