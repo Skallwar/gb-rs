@@ -37,6 +37,10 @@ impl Ppu {
         }
     }
 
+    fn bg_map_get_tile_number(&self, x: u8, y: u8) -> u8 {
+        self.vram[(0x9800 + (y * 0x20 + x) as u16) as usize]
+    }
+
     fn tile_addr(&self, num: u8) -> u16 {
         num as u16 * 0x10
     }
