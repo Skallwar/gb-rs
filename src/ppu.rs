@@ -17,6 +17,10 @@ enum Colors {
     WHITE = 0xFFFFFFFF,
 }
 
+const SCREEN_SIZE_X: usize = 160;
+const SCREEN_SIZE_Y: usize = 144;
+
+//Memory management
 impl Ppu {
     pub fn new() -> Self {
         Ppu {
@@ -37,8 +41,60 @@ impl Ppu {
     pub fn write(&mut self, addr: u16, data: u8) {
         self.vram[addr as usize] = data;
     }
+}
 
-    fn find_color(&self, color: u8) -> Colors {
+//Frame creation
+impl Ppu {
+    fn frame_gen(&mut self) -> Vec<u32> {
+        let mut pixs = Vec::new();
+
+        self.LY = 0;
+
+        for j in self.SCY..self.SCY + SCREEN_SIZE_Y as u8 {
+            let mut pixs_line = self.get_line_pixs(j);
+
+            pixs.append(&mut pixs_line);
+            self.LY += 1;
+        }
+
+        //Should be in V-Blank
+
+        pixs
+    }
+
+    fn get_line_pixs(&self, line: u8) -> Vec<u32> {
+        let mut pixs = Vec::with_capacity(SCREEN_SIZE_X);
+
+        let bg_y = line / 8;
+        for x in 0..SCREEN_SIZE_X {
+            let col = x as u8; //TODO add SCX
+            let bg_x = col / 8;
+
+            let tile_nb = self.bg_map_get_tile_number(bg_x, bg_y);
+            pixs[x] = self.tile_get_pix(tile_nb, col % 8, line % 8);
+        }
+
+        pixs
+    }
+
+    fn tile_get_pix(&self, num: u8, x: u8, y: u8) -> u32 {
+        let addr = self.tile_addr(num);
+        let i = addr + y as u16 * 2;
+        let lsb = self.vram[i as usize];
+        let msb = self.vram[(i + 1) as usize];
+
+        let msb_color = ((msb & (1 << 7 - x) > 0) as u8) << 1;
+        let lsb_color = (lsb & (1 << 7 - x) > 0) as u8;
+        let color_num = msb_color + lsb_color;
+
+        self.pix_find_color(color_num) as u32
+    }
+
+    fn tile_addr(&self, num: u8) -> u16 {
+        num as u16 * 0x10
+    }
+
+    fn pix_find_color(&self, color: u8) -> Colors {
         match color {
             0b00 => Colors::WHITE,
             _ => Colors::BLACK,
@@ -46,31 +102,17 @@ impl Ppu {
     }
 
     fn bg_map_get_tile_number(&self, x: u8, y: u8) -> u8 {
-        self.vram[(0x9800 + (y * 0x20 + x) as u16) as usize]
-    }
-
-    fn tile_addr(&self, num: u8) -> u16 {
-        num as u16 * 0x10
+        let index = 0x9800 - 0x8000 + (y as u16 * 0x20 + x as u16);
+        self.vram[index as usize]
     }
 }
 
 //Debug
 impl Ppu {
     pub fn tile_print(&self, num: u8) {
-        let addr = self.tile_addr(num);
-
-        for i in (addr..addr + 0x10).step_by(2) {
-            let lsb = self.vram[i as usize];
-            let msb = self.vram[(i + 1) as usize];
-
-            for j in 0..8 {
-                //Color in 2 bits format
-                // lsb & (1 << (7 - x))
-                let msb_color = ((msb & (1 << 7 - j) > 0) as u8) << 1;
-                let lsb_color = (lsb & (1 << 7 - j) > 0) as u8;
-                let color_num = msb_color + lsb_color;
-                let pix_color = self.find_color(color_num) as u32;
-
+        for j in 0..8 {
+            for i in 0..8 {
+                let pix_color = self.tile_get_pix(num, i, j);
                 if pix_color == Colors::BLACK as u32 {
                     print!("1");
                 } else {
@@ -79,6 +121,22 @@ impl Ppu {
             }
 
             println!("");
+        }
+    }
+
+    pub fn frame_print(&mut self) {
+        let frame = self.frame_gen();
+
+        for j in 0..SCREEN_SIZE_Y {
+            for x in 0..SCREEN_SIZE_X {
+                if frame[(j * SCREEN_SIZE_X + x) as usize] != 0 {
+                    print!("1");
+                } else {
+                    print!(" ");
+                }
+            }
+
+            println!();
         }
     }
 }
