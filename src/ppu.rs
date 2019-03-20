@@ -17,8 +17,8 @@ enum Colors {
     WHITE = 0xFFFFFFFF,
 }
 
-const SCREEN_SIZE_X: usize = 160;
-const SCREEN_SIZE_Y: usize = 144;
+const VIEWPORT_SIZE_X: usize = 160;
+const VIEWPORT_SIZE_Y: usize = 144;
 
 //Memory management
 impl Ppu {
@@ -48,12 +48,14 @@ impl Ppu {
     fn frame_gen(&mut self) -> Vec<u32> {
         let mut pixs = Vec::new();
 
+        println!("SCX: {}, SCY: {}", 0, self.SCY);
+
         self.LY = 0;
 
-        for j in self.SCY..self.SCY + SCREEN_SIZE_Y as u8 {
-            let mut pixs_line = self.get_line_pixs(j);
-
+        while self.LY < VIEWPORT_SIZE_Y as u8 {
+            let mut pixs_line = self.get_line_pixs(self.LY);
             pixs.append(&mut pixs_line);
+
             self.LY += 1;
         }
 
@@ -63,10 +65,10 @@ impl Ppu {
     }
 
     fn get_line_pixs(&self, line: u8) -> Vec<u32> {
-        let mut pixs = Vec::with_capacity(SCREEN_SIZE_X);
+        let mut pixs = Vec::with_capacity(VIEWPORT_SIZE_X);
 
-        let bg_y = line / 8;
-        for x in 0..SCREEN_SIZE_X {
+        let bg_y = (self.SCY + line) / 8;
+        for x in 0..VIEWPORT_SIZE_X {
             let col = x as u8; //TODO add SCX
             let bg_x = col / 8;
 
@@ -127,9 +129,9 @@ impl Ppu {
     pub fn frame_print(&mut self) {
         let frame = self.frame_gen();
 
-        for j in 0..SCREEN_SIZE_Y {
-            for x in 0..SCREEN_SIZE_X {
-                if frame[(j * SCREEN_SIZE_X + x) as usize] != 0 {
+        for j in 0..VIEWPORT_SIZE_Y {
+            for x in 0..VIEWPORT_SIZE_X {
+                if frame[(j * VIEWPORT_SIZE_X + x) as usize] != 0 {
                     print!("1");
                 } else {
                     print!(" ");
