@@ -73,7 +73,7 @@ impl Ppu {
             let bg_x = col / 8;
 
             let tile_nb = self.bg_map_get_tile_number(bg_x, bg_y);
-            pixs[x] = self.tile_get_pix(tile_nb, col % 8, line % 8);
+            pixs.push(self.tile_get_pix(tile_nb, col % 8, line % 8));
         }
 
         pixs
@@ -131,7 +131,7 @@ impl Ppu {
 
         for j in 0..VIEWPORT_SIZE_Y {
             for x in 0..VIEWPORT_SIZE_X {
-                if frame[(j * VIEWPORT_SIZE_X + x) as usize] != 0 {
+                if frame[(j * VIEWPORT_SIZE_X + x) as usize] == 0 {
                     print!("1");
                 } else {
                     print!(" ");
