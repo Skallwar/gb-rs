@@ -1,8 +1,11 @@
 pub struct Ppu {
     vram: Vec<u8>,
+    frame: Vec<u32>,
+
+    cycles: u16,
 
     pub LCDC_Control: u8,
-    // LCDC_Status: u8,
+    LCDC_Status: u8,
     pub SCY: u8,
     // SCX: u8,
     pub LY: u8,
@@ -25,8 +28,11 @@ impl Ppu {
     pub fn new() -> Self {
         Ppu {
             vram: vec![0; 0x9FFF - 0x8000 + 1],
+            frame: vec![0],
+            cycles: 0,
 
             LCDC_Control: 0,
+            LCDC_Status: 0,
             SCY: 0,
             LY: 0,
 
@@ -41,27 +47,67 @@ impl Ppu {
     pub fn write(&mut self, addr: u16, data: u8) {
         self.vram[addr as usize] = data;
     }
+
+    pub fn do_cycle(&mut self) {
+        while self.cycles != 0 {
+            self.cycles -= 1
+        }
+
+        let mode = self.get_mode();
+        self.cycles += match mode {
+            0 => 0,
+            1 => 0,
+            2 => 0,
+            3 => 0,
+            _ => panic!("Impossible case"),
+        }
+    }
+
+    fn do_hblank(&self) -> u8 {
+        1
+    }
+
+    fn do_vblank(&self) -> u8 {
+        self.set_mode(2);
+        1
+    }
+
+    fn do_oam(&mut self) -> u8 {
+        self.set_mode(3);
+        1
+    }
+
+    fn do_transfer(&mut self) -> u8 {
+        self.frame_gen();
+        self.set_mode(1);
+        1
+    }
+
+    fn get_mode(&self) -> u8 {
+        self.LCDC_Status & 0b00000011
+    }
+
+    fn set_mode(&mut self, mode: u8) {
+        self.LCDC_Status &= 0b11111100;
+        self.LCDC_Status += mode;
+    }
 }
 
 //Frame creation
 impl Ppu {
-    fn frame_gen(&mut self) -> Vec<u32> {
-        let mut pixs = Vec::new();
-
-        println!("SCX: {}, SCY: {}", 0, self.SCY);
+    fn frame_gen(&mut self) {
+        self.frame = Vec::new();
 
         self.LY = 0;
 
         while self.LY < VIEWPORT_SIZE_Y as u8 {
             let mut pixs_line = self.get_line_pixs(self.LY);
-            pixs.append(&mut pixs_line);
+            self.frame.append(&mut pixs_line);
 
             self.LY += 1;
         }
 
         //Should be in V-Blank
-
-        pixs
     }
 
     fn get_line_pixs(&self, line: u8) -> Vec<u32> {
@@ -127,11 +173,11 @@ impl Ppu {
     }
 
     pub fn frame_print(&mut self) {
-        let frame = self.frame_gen();
+        self.frame_gen();
 
         for j in 0..VIEWPORT_SIZE_Y {
             for x in 0..VIEWPORT_SIZE_X {
-                if frame[(j * VIEWPORT_SIZE_X + x) as usize] == 0 {
+                if self.frame[(j * VIEWPORT_SIZE_X + x) as usize] == 0 {
                     print!("1");
                 } else {
                     print!(" ");

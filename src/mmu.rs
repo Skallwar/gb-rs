@@ -51,6 +51,10 @@ impl Mmu {
         }
     }
 
+    pub fn do_cycle(&mut self) {
+        self.ppu.do_cycle();
+    }
+
     pub fn read(&self, addr: u16) -> u8 {
         match addr {
             0x0000...0x00FF if self.dmg_on => self.dmg[addr as usize], //DMG
