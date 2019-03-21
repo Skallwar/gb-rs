@@ -32,14 +32,11 @@ impl Cpu {
 
     pub fn run(&mut self) {
         loop {
+            self.mmu.do_cycle();
+
             if self.cycles != 0 {
                 self.cycles -= 1;
-            }
-
-            //Test read tile
-            if self.regs.PC == 0x5B {
-                self.mmu.ppu.frame_print();
-                panic!();
+                continue;
             }
 
             let instr = self.mmu.read(self.regs.PC);
