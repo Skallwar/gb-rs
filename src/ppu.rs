@@ -1,8 +1,11 @@
+use crate::lcd::Lcd;
+
 pub struct Ppu {
+    lcd: Lcd,
     vram: Vec<u8>,
     frame: Vec<u32>,
 
-    cycles: u16,
+    cycles: u8,
 
     pub LCDC_Control: u8,
     LCDC_Status: u8,
@@ -27,12 +30,13 @@ const VIEWPORT_SIZE_Y: usize = 144;
 impl Ppu {
     pub fn new() -> Self {
         Ppu {
+            lcd: Lcd::new(VIEWPORT_SIZE_Y, VIEWPORT_SIZE_Y),
             vram: vec![0; 0x9FFF - 0x8000 + 1],
             frame: vec![0],
             cycles: 0,
 
             LCDC_Control: 0,
-            LCDC_Status: 0,
+            LCDC_Status: 0b00000010,
             SCY: 0,
             LY: 0,
 
@@ -49,16 +53,21 @@ impl Ppu {
     }
 
     pub fn do_cycle(&mut self) {
+        if !self.lcd_ison() {
+            return;
+        }
+
         while self.cycles != 0 {
-            self.cycles -= 1
+            self.cycles -= 1;
+            return;
         }
 
         let mode = self.get_mode();
         self.cycles += match mode {
-            0 => 0,
-            1 => 0,
-            2 => 0,
-            3 => 0,
+            0 => self.do_hblank(),
+            1 => self.do_vblank(),
+            2 => self.do_oam(),
+            3 => self.do_transfer(),
             _ => panic!("Impossible case"),
         }
     }
@@ -67,7 +76,8 @@ impl Ppu {
         1
     }
 
-    fn do_vblank(&self) -> u8 {
+    fn do_vblank(&mut self) -> u8 {
+        self.lcd.update(&self.frame);
         self.set_mode(2);
         1
     }
@@ -90,6 +100,10 @@ impl Ppu {
     fn set_mode(&mut self, mode: u8) {
         self.LCDC_Status &= 0b11111100;
         self.LCDC_Status += mode;
+    }
+
+    fn lcd_ison(&self) -> bool {
+        self.LCDC_Control & 0b10000000 > 0
     }
 }
 

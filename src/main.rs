@@ -3,6 +3,7 @@ use std::path;
 
 mod cartridge;
 mod cpu;
+mod lcd;
 mod mmu;
 mod ppu;
 mod regs;
