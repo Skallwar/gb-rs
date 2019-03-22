@@ -620,55 +620,34 @@ impl Cpu {
 //ALU
 impl Cpu {
     fn xor(&mut self, reg: u8) {
-        self.regs.A = reg ^ self.regs.A;
+        let res = reg ^ self.regs.A;
+        self.regs.A = res;
 
-        if self.regs.A == 0 {
-            self.regs.set_flag(FlagsMasks::Z, true);
-        }
+        self.regs.set_flag(FlagsMasks::Z, res == 0);
     }
 
     fn dec_u8(&mut self, reg: u8) -> u8 {
-        let res = reg.overflowing_sub(1);
+        let res = reg.wrapping_sub(1);
 
         self.regs.set_flag(FlagsMasks::N, true);
-        if res.0 == 0 {
-            self.regs.set_flag(FlagsMasks::Z, true);
-        } else {
-            self.regs.set_flag(FlagsMasks::Z, false);
-        }
+        self.regs.set_flag(FlagsMasks::Z, res == 0);
+        self.regs.set_flag(FlagsMasks::H, res >> 4 > 0);
 
-        if res.0 & 0b11110000 == 0 {
-            self.regs.set_flag(FlagsMasks::H, false);
-        } else {
-            self.regs.set_flag(FlagsMasks::H, true);
-        }
-
-        res.0
+        res
     }
 
     fn inc_u8(&mut self, reg: u8) -> u8 {
-        let res = reg.overflowing_add(1);
+        let res = reg.wrapping_add(1);
 
         self.regs.set_flag(FlagsMasks::N, false);
-        if res.0 == 0 {
-            self.regs.set_flag(FlagsMasks::Z, true);
-        } else {
-            self.regs.set_flag(FlagsMasks::Z, false);
-        }
+        self.regs.set_flag(FlagsMasks::Z, res == 0);
+        self.regs.set_flag(FlagsMasks::H, res >> 3 == 0);
 
-        if res.0 & 0b11111000 == 0 {
-            self.regs.set_flag(FlagsMasks::H, true);
-        } else {
-            self.regs.set_flag(FlagsMasks::H, false);
-        }
-
-        res.0
+        res
     }
 
     fn inc_u16(&mut self, reg: u16) -> u16 {
-        let res = reg.overflowing_add(1);
-
-        res.0
+        reg.wrapping_add(1)
     }
 
     fn bit(&mut self, regs: u8, nb_bit: u8) {
@@ -677,53 +656,31 @@ impl Cpu {
 
         self.regs.set_flag(FlagsMasks::N, false);
         self.regs.set_flag(FlagsMasks::H, true);
-        if bit {
-            self.regs.set_flag(FlagsMasks::Z, false);
-        } else {
-            self.regs.set_flag(FlagsMasks::Z, true);
-        }
+        self.regs.set_flag(FlagsMasks::Z, !bit);
     }
 
     //TODO fix rotation, not shift
     fn rl(&mut self, reg: u8) -> u8 {
+        let carry = self.regs.get_flag(FlagsMasks::C) as u8;
+        let res = (reg << 1) + carry;
+
         self.regs.set_flag(FlagsMasks::N, false);
         self.regs.set_flag(FlagsMasks::H, false);
-
-        let res = (reg << 1) + self.regs.get_flag(FlagsMasks::C) as u8;
         self.regs.set_flag(FlagsMasks::C, (reg & 0b10000000) > 0);
-
-        if res != 0 {
-            self.regs.set_flag(FlagsMasks::Z, false);
-        } else {
-            self.regs.set_flag(FlagsMasks::Z, true);
-        }
+        self.regs.set_flag(FlagsMasks::Z, res == 0);
 
         res
     }
 
     fn sub(&mut self, num1: u8, num2: u8) -> u8 {
-        let res = num1.overflowing_sub(num2);
+        let (res, overflow) = num1.overflowing_sub(num2);
 
         self.regs.set_flag(FlagsMasks::N, true);
-        if res.0 == 0 {
-            self.regs.set_flag(FlagsMasks::Z, true);
-        } else {
-            self.regs.set_flag(FlagsMasks::Z, false);
-        }
+        self.regs.set_flag(FlagsMasks::Z, res == 0);
+        self.regs.set_flag(FlagsMasks::H, res & 0xF0 == 0);
+        self.regs.set_flag(FlagsMasks::C, overflow);
 
-        if res.0 & 0xF0 == 0 {
-            self.regs.set_flag(FlagsMasks::H, true);
-        } else {
-            self.regs.set_flag(FlagsMasks::H, false);
-        }
-
-        if res.1 {
-            self.regs.set_flag(FlagsMasks::C, true);
-        } else {
-            self.regs.set_flag(FlagsMasks::C, false);
-        }
-
-        res.0
+        res
     }
 }
 
