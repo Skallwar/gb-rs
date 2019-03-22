@@ -2,18 +2,20 @@ extern crate minifb;
 
 use minifb::{Window, WindowOptions};
 
+const LCD_WIDTH: usize = 144;
+const LCD_HEIGHT: usize = 160;
+
 pub struct Lcd {
     window: Window,
 }
 
 impl Lcd {
-    pub fn new(width: usize, height: usize) -> Self {
+    pub fn new() -> Self {
         Lcd {
-            window: Window::new("GB-rs", width, height, WindowOptions::default()).unwrap_or_else(
-                |e| {
+            window: Window::new("GB-rs", LCD_WIDTH, LCD_HEIGHT, WindowOptions::default())
+                .unwrap_or_else(|e| {
                     panic!("{}", e);
-                },
-            ),
+                }),
         }
     }
 

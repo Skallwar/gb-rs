@@ -30,7 +30,7 @@ const VIEWPORT_SIZE_Y: usize = 144;
 impl Ppu {
     pub fn new() -> Self {
         Ppu {
-            lcd: Lcd::new(VIEWPORT_SIZE_Y, VIEWPORT_SIZE_Y),
+            lcd: Lcd::new(),
             vram: vec![0; 0x9FFF - 0x8000 + 1],
             frame: vec![0],
             cycles: 0,
