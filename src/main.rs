@@ -13,7 +13,7 @@ use cpu::Cpu;
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
-        println!("No file specified");
+        println!("No file specified !");
     }
 
     let path = path::Path::new(&args[1]);
