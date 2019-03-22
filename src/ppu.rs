@@ -18,6 +18,13 @@ pub struct Ppu {
     pub bg_colorpalette: u8,
 }
 
+enum LCDModes {
+    OAM = 2,
+    TRANSFER = 3,
+    HBLANK = 0,
+    VBLANK = 1,
+}
+
 enum Colors {
     BLACK = 0x00000000,
     WHITE = 0xFFFFFFFF,
@@ -26,30 +33,27 @@ enum Colors {
 const VIEWPORT_SIZE_X: usize = 160;
 const VIEWPORT_SIZE_Y: usize = 144;
 
+const TILE_SIZE: u16 = 0x10;
+const BG_LINE_SIZE: u16 = 0x20;
+
+const VRAM_SIZE: usize = 0x9FFF - 0x8000 + 1;
+
 //Memory management
 impl Ppu {
     pub fn new() -> Self {
         Ppu {
             lcd: Lcd::new(),
-            vram: vec![0; 0x9FFF - 0x8000 + 1],
+            vram: vec![0; VRAM_SIZE],
             frame: vec![0],
             cycles: 0,
 
             lcdc_control: 0,
-            lcdc_status: 0b00000010,
+            lcdc_status: 0 + LCDModes::OAM as u8,
             scy: 0,
             ly: 0,
 
             bg_colorpalette: 0,
         }
-    }
-
-    // pub fn read(&self, addr: u16) -> u8 {
-    //     self.vram[addr as usize]
-    // }
-
-    pub fn write(&mut self, addr: u16, data: u8) {
-        self.vram[addr as usize] = data;
     }
 
     pub fn do_cycle(&mut self) {
@@ -64,11 +68,10 @@ impl Ppu {
 
         let mode = self.get_mode();
         self.cycles += match mode {
-            0 => self.do_hblank(),
-            1 => self.do_vblank(),
-            2 => self.do_oam(),
-            3 => self.do_transfer(),
-            _ => panic!("Impossible case"),
+            LCDModes::HBLANK => self.do_hblank(),
+            LCDModes::VBLANK => self.do_vblank(),
+            LCDModes::OAM => self.do_oam(),
+            LCDModes::TRANSFER => self.do_transfer(),
         }
     }
 
@@ -78,28 +81,42 @@ impl Ppu {
 
     fn do_vblank(&mut self) -> u8 {
         self.lcd.update(&self.frame);
-        self.set_mode(2);
+        self.set_mode(LCDModes::OAM);
         1
     }
 
     fn do_oam(&mut self) -> u8 {
-        self.set_mode(3);
+        self.set_mode(LCDModes::TRANSFER);
         1
     }
 
     fn do_transfer(&mut self) -> u8 {
         self.frame_gen();
-        self.set_mode(1);
+        self.set_mode(LCDModes::VBLANK); // Should be HBLANK but for now, no HBLANK
         1
     }
 
-    fn get_mode(&self) -> u8 {
-        self.lcdc_status & 0b00000011
+    // pub fn read(&self, addr: u16) -> u8 {
+    //     self.vram[addr as usize]
+    // }
+
+    pub fn write(&mut self, addr: u16, data: u8) {
+        self.vram[addr as usize] = data;
     }
 
-    fn set_mode(&mut self, mode: u8) {
+    fn get_mode(&self) -> LCDModes {
+        match self.lcdc_status & 0b00000011 {
+            0 => LCDModes::HBLANK,
+            1 => LCDModes::VBLANK,
+            2 => LCDModes::OAM,
+            3 => LCDModes::TRANSFER,
+            _ => panic!("Impossible case"),
+        }
+    }
+
+    fn set_mode(&mut self, mode: LCDModes) {
         self.lcdc_status &= 0b11111100;
-        self.lcdc_status += mode;
+        self.lcdc_status += mode as u8;
     }
 
     fn lcd_ison(&self) -> bool {
@@ -153,7 +170,7 @@ impl Ppu {
     }
 
     fn tile_addr(&self, num: u8) -> u16 {
-        num as u16 * 0x10
+        num as u16 * TILE_SIZE
     }
 
     fn pix_find_color(&self, color: u8) -> Colors {
@@ -164,7 +181,7 @@ impl Ppu {
     }
 
     fn bg_map_get_tile_number(&self, x: u8, y: u8) -> u8 {
-        let index = 0x9800 - 0x8000 + (y as u16 * 0x20 + x as u16);
+        let index = 0x9800 - 0x8000 + (y as u16 * BG_LINE_SIZE + x as u16);
         self.vram[index as usize]
     }
 }
