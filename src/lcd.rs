@@ -1,6 +1,6 @@
 extern crate minifb;
 
-use minifb::{Key, Window, WindowOptions};
+use minifb::{Window, WindowOptions};
 
 pub struct Lcd {
     window: Window,

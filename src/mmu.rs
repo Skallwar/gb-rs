@@ -10,7 +10,6 @@ pub struct Mmu {
 
     dmg: Vec<u8>,
     ram: Vec<u8>,
-    ioports: Vec<u8>,
     hram: Vec<u8>,
 
     dmg_on: bool,
@@ -23,7 +22,6 @@ impl Mmu {
             ppu: Ppu::new(),
 
             ram: vec![0; 0xDFFF - 0xC000 + 1],
-            ioports: vec![0; 0xFF7E - 0xFF00 + 1],
             hram: vec![0; 0xFFFE - 0xFF80 + 1],
             dmg: vec![
                 0x31, 0xfe, 0xff, 0xaf, 0x21, 0xff, 0x9f, 0x32, 0xcb, 0x7c, 0x20, 0xfb, 0x21, 0x26,
@@ -93,7 +91,7 @@ impl Mmu {
 
     fn ioports_read(&self, addr: u16) -> u8 {
         match addr {
-            0xFF44 => self.ppu.LY,
+            0xFF44 => self.ppu.ly,
             _ => panic!("Read at 0x{:X} in I/O ports not implemented", addr),
         }
     }
@@ -102,9 +100,9 @@ impl Mmu {
         match addr {
             0xFF26 | 0xFF11 | 0xFF12 | 0xFF24 | 0xFF25 => {} //TODO implement sound
             //PPU / LCD
-            0xFF40 => self.ppu.LCDC_Control = data,
-            0xFF42 => self.ppu.SCY = data,
-            0xFF47 => self.ppu.BG_ColorPalette = data,
+            0xFF40 => self.ppu.lcdc_control = data,
+            0xFF42 => self.ppu.scy = data,
+            0xFF47 => self.ppu.bg_colorpalette = data,
             _ => panic!("Write at 0x{:X} in I/O ports not implemented", addr),
         }
     }

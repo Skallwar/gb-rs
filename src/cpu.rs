@@ -150,10 +150,10 @@ impl Cpu {
                 12
             }
 
-            //INC HL
+            //INC DE
             0x13 => {
-                let DE = self.regs.DE() + 1;
-                self.regs.set_DE(DE);
+                let inc = self.inc_u16(self.regs.DE());
+                self.regs.set_DE(inc);
 
                 println!(
                     "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {}",
@@ -251,8 +251,8 @@ impl Cpu {
 
             //INC HL
             0x23 => {
-                let HL = self.regs.HL() + 1;
-                self.regs.set_HL(HL);
+                let inc = self.inc_u16(self.regs.HL());
+                self.regs.set_HL(inc);
 
                 println!(
                     "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {}",
@@ -661,6 +661,12 @@ impl Cpu {
         } else {
             self.regs.set_flag(FlagsMasks::H, false);
         }
+
+        res.0
+    }
+
+    fn inc_u16(&mut self, reg: u16) -> u16 {
+        let res = reg.overflowing_add(1);
 
         res.0
     }

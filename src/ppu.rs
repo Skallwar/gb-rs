@@ -7,15 +7,15 @@ pub struct Ppu {
 
     cycles: u8,
 
-    pub LCDC_Control: u8,
-    LCDC_Status: u8,
-    pub SCY: u8,
+    pub lcdc_control: u8,
+    lcdc_status: u8,
+    pub scy: u8,
     // SCX: u8,
-    pub LY: u8,
+    pub ly: u8,
     // LYC: u8,
     // WY: u8,
     // WX: u8,
-    pub BG_ColorPalette: u8,
+    pub bg_colorpalette: u8,
 }
 
 enum Colors {
@@ -35,18 +35,18 @@ impl Ppu {
             frame: vec![0],
             cycles: 0,
 
-            LCDC_Control: 0,
-            LCDC_Status: 0b00000010,
-            SCY: 0,
-            LY: 0,
+            lcdc_control: 0,
+            lcdc_status: 0b00000010,
+            scy: 0,
+            ly: 0,
 
-            BG_ColorPalette: 0,
+            bg_colorpalette: 0,
         }
     }
 
-    pub fn read(&self, addr: u16) -> u8 {
-        self.vram[addr as usize]
-    }
+    // pub fn read(&self, addr: u16) -> u8 {
+    //     self.vram[addr as usize]
+    // }
 
     pub fn write(&mut self, addr: u16, data: u8) {
         self.vram[addr as usize] = data;
@@ -94,16 +94,16 @@ impl Ppu {
     }
 
     fn get_mode(&self) -> u8 {
-        self.LCDC_Status & 0b00000011
+        self.lcdc_status & 0b00000011
     }
 
     fn set_mode(&mut self, mode: u8) {
-        self.LCDC_Status &= 0b11111100;
-        self.LCDC_Status += mode;
+        self.lcdc_status &= 0b11111100;
+        self.lcdc_status += mode;
     }
 
     fn lcd_ison(&self) -> bool {
-        self.LCDC_Control & 0b10000000 > 0
+        self.lcdc_control & 0b10000000 > 0
     }
 }
 
@@ -112,13 +112,13 @@ impl Ppu {
     fn frame_gen(&mut self) {
         self.frame = Vec::new();
 
-        self.LY = 0;
+        self.ly = 0;
 
-        while self.LY < VIEWPORT_SIZE_Y as u8 {
-            let mut pixs_line = self.get_line_pixs(self.LY);
+        while self.ly < VIEWPORT_SIZE_Y as u8 {
+            let mut pixs_line = self.get_line_pixs(self.ly);
             self.frame.append(&mut pixs_line);
 
-            self.LY += 1;
+            self.ly += 1;
         }
 
         //Should be in V-Blank
@@ -127,7 +127,7 @@ impl Ppu {
     fn get_line_pixs(&self, line: u8) -> Vec<u32> {
         let mut pixs = Vec::with_capacity(VIEWPORT_SIZE_X);
 
-        let bg_y = (self.SCY + line) / 8;
+        let bg_y = (self.scy + line) / 8;
         for x in 0..VIEWPORT_SIZE_X {
             let col = x as u8; //TODO add SCX
             let bg_x = col / 8;
@@ -170,6 +170,7 @@ impl Ppu {
 }
 
 //Debug
+#[allow(dead_code)]
 impl Ppu {
     pub fn tile_print(&self, num: u8) {
         for j in 0..8 {

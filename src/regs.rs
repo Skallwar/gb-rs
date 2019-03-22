@@ -20,6 +20,7 @@ pub enum FlagsMasks {
 }
 
 #[allow(non_snake_case)]
+#[allow(dead_code)]
 impl Registers {
     pub fn new() -> Self {
         Registers {
