@@ -5,7 +5,7 @@ pub struct Ppu {
     vram: Vec<u8>,
     frame: Vec<u32>,
 
-    cycles: u8,
+    cycles: usize,
 
     pub lcdc_control: u8,
     lcdc_status: u8,
@@ -30,13 +30,18 @@ enum Colors {
     WHITE = 0xFFFFFFFF,
 }
 
-const VIEWPORT_SIZE_X: usize = 160;
-const VIEWPORT_SIZE_Y: usize = 144;
+const VIEWPORT_SIZE_X: u8 = 160;
+const VIEWPORT_SIZE_Y: u8 = 144;
 
 const TILE_SIZE: u16 = 0x10;
 const BG_LINE_SIZE: u16 = 0x20;
 
 const VRAM_SIZE: usize = 0x9FFF - 0x8000 + 1;
+
+const HBLANK_TIME: usize = 207;
+const VBLANK_TIME: usize = 4560;
+const OAM_TIME: usize = 83;
+const TRANSFER_TIME: usize = 175;
 
 //Memory management
 impl Ppu {
@@ -44,7 +49,7 @@ impl Ppu {
         Ppu {
             lcd: Lcd::new(),
             vram: vec![0; VRAM_SIZE],
-            frame: vec![0],
+            frame: vec![0; VIEWPORT_SIZE_Y as usize * VIEWPORT_SIZE_X as usize],
             cycles: 0,
 
             lcdc_control: 0,
@@ -75,25 +80,30 @@ impl Ppu {
         }
     }
 
-    fn do_hblank(&self) -> u8 {
-        1
+    fn do_hblank(&mut self) -> usize {
+        self.set_mode(LCDModes::OAM);
+        HBLANK_TIME
     }
 
-    fn do_vblank(&mut self) -> u8 {
+    fn do_vblank(&mut self) -> usize {
         self.lcd.update(&self.frame);
         self.set_mode(LCDModes::OAM);
-        1
+        VBLANK_TIME
     }
 
-    fn do_oam(&mut self) -> u8 {
+    fn do_oam(&mut self) -> usize {
         self.set_mode(LCDModes::TRANSFER);
-        1
+        OAM_TIME
     }
 
-    fn do_transfer(&mut self) -> u8 {
-        self.frame_gen();
-        self.set_mode(LCDModes::VBLANK); // Should be HBLANK but for now, no HBLANK
-        1
+    fn do_transfer(&mut self) -> usize {
+        if self.ly < VIEWPORT_SIZE_Y {
+            self.line_gen();
+            self.set_mode(LCDModes::HBLANK);
+        } else {
+            self.set_mode(LCDModes::VBLANK);
+        }
+        TRANSFER_TIME
     }
 
     // pub fn read(&self, addr: u16) -> u8 {
@@ -126,34 +136,19 @@ impl Ppu {
 
 //Frame creation
 impl Ppu {
-    fn frame_gen(&mut self) {
-        self.frame = Vec::new();
-
-        self.ly = 0;
-
-        while self.ly < VIEWPORT_SIZE_Y as u8 {
-            let mut pixs_line = self.get_line_pixs(self.ly);
-            self.frame.append(&mut pixs_line);
-
-            self.ly += 1;
-        }
-
-        //Should be in V-Blank
-    }
-
-    fn get_line_pixs(&self, line: u8) -> Vec<u32> {
-        let mut pixs = Vec::with_capacity(VIEWPORT_SIZE_X);
-
+    fn line_gen(&mut self) {
+        let line = self.ly;
         let bg_y = (self.scy + line) / 8;
         for x in 0..VIEWPORT_SIZE_X {
             let col = x as u8; //TODO add SCX
             let bg_x = col / 8;
 
             let tile_nb = self.bg_map_get_tile_number(bg_x, bg_y);
-            pixs.push(self.tile_get_pix(tile_nb, col % 8, line % 8));
+            self.frame[bg_y as usize * VIEWPORT_SIZE_X as usize + bg_x as usize] =
+                self.tile_get_pix(tile_nb, col % 8, line % 8);
         }
 
-        pixs
+        self.ly += 1;
     }
 
     fn tile_get_pix(&self, num: u8, x: u8, y: u8) -> u32 {
@@ -205,8 +200,6 @@ impl Ppu {
     }
 
     pub fn frame_print(&mut self) {
-        self.frame_gen();
-
         for j in 0..VIEWPORT_SIZE_Y {
             for x in 0..VIEWPORT_SIZE_X {
                 if self.frame[(j * VIEWPORT_SIZE_X + x) as usize] == 0 {
