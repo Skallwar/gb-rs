@@ -1,4 +1,5 @@
 use std::path;
+use std::{thread, time};
 
 use crate::mmu::Mmu;
 use crate::regs::*;
@@ -16,6 +17,8 @@ pub struct Cpu {
 struct ModeChangeFlags {
     change_intrpt_mode_on_next_instr: bool,
 }
+
+const CYCLE_TIME_MICRO: u64 = 5;
 
 impl Cpu {
     pub fn new(path: &path::Path) -> Self {
@@ -35,14 +38,27 @@ impl Cpu {
             self.mmu.do_cycle();
 
             if self.cycles != 0 {
+                // self.cycle_wait();
                 self.cycles -= 1;
                 continue;
+            }
+
+            // End of prototype
+            if self.regs.PC == 0x100 {
+                println!("");
+                self.dump();
+                return;
             }
 
             let instr = self.mmu.read(self.regs.PC);
             self.regs.inc_PC();
             self.cycles = self.exec_instr(instr);
         }
+    }
+
+    fn cycle_wait(&self) {
+        let wait = time::Duration::from_micros(CYCLE_TIME_MICRO);
+        thread::sleep(wait);
     }
 
     fn exec_instr(&mut self, instr: u8) -> u8 {
@@ -162,6 +178,29 @@ impl Cpu {
                 8
             }
 
+            //DEC D
+            0x15 => {
+                self.regs.D = self.dec_u8(self.regs.D);
+
+                println!(
+                    "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {}",
+                    addr, instr, 4, "DEC", "D"
+                );
+                4
+            }
+
+            //LD D u8
+            0x16 => {
+                let data = self.get_imu8();
+                self.regs.D = data;
+
+                println!(
+                    "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {} 0x{:X}",
+                    addr, instr, 8, "LD", "D,", data
+                );
+                8
+            }
+
             //RLA
             0x17 => {
                 self.regs.A = self.rl(self.regs.A);
@@ -195,6 +234,17 @@ impl Cpu {
                     addr, instr, 8, "LD", "A,", "DE"
                 );
                 8
+            }
+
+            //DEC E
+            0x1D => {
+                self.regs.E = self.dec_u8(self.regs.E);
+
+                println!(
+                    "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {}",
+                    addr, instr, 4, "DEC", "E"
+                );
+                4
             }
 
             //LD E u8
@@ -259,6 +309,17 @@ impl Cpu {
                     addr, instr, 8, "INC", "HL"
                 );
                 8
+            }
+
+            //INC H
+            0x24 => {
+                self.regs.H = self.inc_u8(self.regs.H);
+
+                println!(
+                    "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {}",
+                    addr, instr, 4, "INC", "H"
+                );
+                4
             }
 
             //JR Z, u16
@@ -334,6 +395,17 @@ impl Cpu {
                 8
             }
 
+            //LD B C
+            0x42 => {
+                self.regs.B = self.regs.C;
+
+                println!(
+                    "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {} {}",
+                    addr, instr, 4, "LD", "B,", "C"
+                );
+                4
+            }
+
             //LD C A
             0x4F => {
                 self.regs.C = self.regs.A;
@@ -378,6 +450,16 @@ impl Cpu {
                 8
             }
 
+            //LD A B
+            0x78 => {
+                self.regs.A = self.regs.B;
+
+                println!(
+                    "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {} {}",
+                    addr, instr, 4, "LD", "A,", "B"
+                );
+                4
+            }
             //LD A C
             0x7B => {
                 self.regs.A = self.regs.E;
@@ -385,6 +467,51 @@ impl Cpu {
                 println!(
                     "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {} {}",
                     addr, instr, 4, "LD", "A,", "E"
+                );
+                4
+            }
+
+            //LD A H
+            0x7C => {
+                self.regs.A = self.regs.H;
+
+                println!(
+                    "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {} {}",
+                    addr, instr, 4, "LD", "A,", "H"
+                );
+                4
+            }
+
+            //LD A L
+            0x7D => {
+                self.regs.A = self.regs.L;
+
+                println!(
+                    "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {} {}",
+                    addr, instr, 4, "LD", "A,", "L"
+                );
+                4
+            }
+
+            //ADD A (HL)
+            0x86 => {
+                let byte = self.mmu.read(self.regs.HL());
+                self.regs.A = self.add(self.regs.A, byte);
+
+                println!(
+                    "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {}, 0x{:X}",
+                    addr, instr, 8, "ADD", "A", byte
+                );
+                8
+            }
+
+            //SUB A B
+            0x90 => {
+                self.regs.A = self.sub(self.regs.A, self.regs.B);
+
+                println!(
+                    "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {}, {}",
+                    addr, instr, 4, "SUB", "A", "B"
                 );
                 4
             }
@@ -398,6 +525,18 @@ impl Cpu {
                     addr, instr, 4, "XOR", "A"
                 );
                 4
+            }
+
+            //CP (HL) #
+            0xBE => {
+                let byte = self.mmu.read(self.regs.HL());
+                self.sub(self.regs.A, byte);
+
+                println!(
+                    "Addr:0x{:04X}\t\tOp:0x{:X}\t\tTime:{}\t\t{} {}",
+                    addr, instr, 8, "CP", "(HL)"
+                );
+                8
             }
 
             //POP BC
@@ -506,6 +645,7 @@ impl Cpu {
                 );
                 16
             }
+
             //DI
             0xF3 => {
                 //Mode flag set at end of func
@@ -631,7 +771,7 @@ impl Cpu {
 
         self.regs.set_flag(FlagsMasks::N, true);
         self.regs.set_flag(FlagsMasks::Z, res == 0);
-        self.regs.set_flag(FlagsMasks::H, res >> 4 > 0);
+        self.regs.set_flag(FlagsMasks::H, (res & 0x0F) == 0);
 
         res
     }
@@ -668,6 +808,17 @@ impl Cpu {
         self.regs.set_flag(FlagsMasks::H, false);
         self.regs.set_flag(FlagsMasks::C, (reg & 0b10000000) > 0);
         self.regs.set_flag(FlagsMasks::Z, res == 0);
+
+        res
+    }
+
+    fn add(&mut self, num1: u8, num2: u8) -> u8 {
+        let (res, overflow) = num1.overflowing_add(num2);
+
+        self.regs.set_flag(FlagsMasks::N, false);
+        self.regs.set_flag(FlagsMasks::Z, res == 0);
+        self.regs.set_flag(FlagsMasks::H, res & 0xF8 == 0);
+        self.regs.set_flag(FlagsMasks::C, overflow);
 
         res
     }

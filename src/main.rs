@@ -1,5 +1,6 @@
 use std::env;
 use std::path;
+use std::{thread, time};
 
 mod cartridge;
 mod cpu;
@@ -23,4 +24,9 @@ fn main() {
 
     let mut cpu = Cpu::new(path);
     cpu.run();
+
+    println!("------------Thanks for trying this prototype------------");
+
+    let wait = time::Duration::from_millis(10000);
+    thread::sleep(wait);
 }

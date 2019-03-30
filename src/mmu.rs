@@ -2,11 +2,11 @@ use std::path;
 
 use crate::cartridge;
 use crate::cartridge::Cartridge;
-use crate::ppu::Ppu;
+use crate::ppu;
 
 pub struct Mmu {
     cartridge: Box<Cartridge>,
-    pub ppu: Ppu,
+    pub ppu: ppu::Ppu,
 
     dmg: Vec<u8>,
     ram: Vec<u8>,
@@ -22,7 +22,7 @@ impl Mmu {
     pub fn new(path: &path::Path) -> Self {
         Mmu {
             cartridge: cartridge::new(path),
-            ppu: Ppu::new(),
+            ppu: ppu::Ppu::new(),
 
             ram: vec![0; RAM_SIZE],
             hram: vec![0; HRAM_SIZE],
@@ -60,6 +60,7 @@ impl Mmu {
         match addr {
             0x0000...0x00FF if self.dmg_on => self.dmg[addr as usize], //DMG
             0x0000...0x3FFF => self.cartridge.read_rom(addr),
+            0x8000...0x9FFF => self.ppu.read(addr - 0x8000),
             0xFF00...0xFF7F => self.ioports_read(addr),
             0xFF80...0xFFFE => self.hram[addr as usize - 0xFF80],
 
@@ -94,18 +95,17 @@ impl Mmu {
 
     fn ioports_read(&self, addr: u16) -> u8 {
         match addr {
-            0xFF44 => self.ppu.ly,
+            0xFF40...0xFF4A => self.ppu.read_registers(addr),
             _ => panic!("Read at 0x{:X} in I/O ports not implemented", addr),
         }
     }
 
     fn ioports_write(&mut self, addr: u16, data: u8) {
         match addr {
-            0xFF26 | 0xFF11 | 0xFF12 | 0xFF24 | 0xFF25 => {} //TODO implement sound
+            0xFF26 | 0xFF11 | 0xFF12 | 0xFF13 | 0xFF14 | 0xFF24 | 0xFF25 => {} //TODO implement sound
             //PPU / LCD
-            0xFF40 => self.ppu.lcdc_control = data,
-            0xFF42 => self.ppu.scy = data,
-            0xFF47 => self.ppu.bg_colorpalette = data,
+            0xFF40...0xFF4A => self.ppu.write_registers(addr, data),
+            0xFF50 => self.dmg_on = false,
             _ => panic!("Write at 0x{:X} in I/O ports not implemented", addr),
         }
     }
